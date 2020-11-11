@@ -17,7 +17,7 @@ import (
 const (
 	BootstrapServersEnvVar = "KAFKA_BOOTSTRAP_SERVERS"
 	TopicEnvVar            = "TOPIC"
-	SendRateEnvVar         = "SEND_RATE"
+	DelayEnvVar            = "DELAY_MS"
 	ProducerClientIDEnvVar = "PRODUCER_CLIENT_ID"
 	ConsumerGroupIDEnvVar  = "CONSUMER_GROUP_ID"
 	TLSEnabledEnvVar       = "TLS_ENABLED"
@@ -27,7 +27,7 @@ const (
 const (
 	BootstrapServersDefault = "localhost:9092"
 	TopicDefault            = "strimzi-canary"
-	SendRateDefault         = 1000
+	DelayDefault            = 1000
 	ProducerClientIDDefault = "strimzi-canary-producer"
 	ConsumerGroupIDDefault  = "strimzi-canary-consumer"
 	TLSEnabledDefault       = false
@@ -37,7 +37,7 @@ const (
 type CanaryConfig struct {
 	BootstrapServers string
 	Topic            string
-	SendRate         time.Duration
+	Delay            time.Duration
 	ProducerClientID string
 	ConsumerGroupID  string
 	TLSEnabled       bool
@@ -47,7 +47,7 @@ func NewCanaryConfig() *CanaryConfig {
 	var config CanaryConfig = CanaryConfig{
 		BootstrapServers: lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),
 		Topic:            lookupStringEnv(TopicEnvVar, TopicDefault),
-		SendRate:         time.Duration(lookupIntEnv(SendRateEnvVar, SendRateDefault)),
+		Delay:            time.Duration(lookupIntEnv(DelayEnvVar, DelayDefault)),
 		ProducerClientID: lookupStringEnv(ProducerClientIDEnvVar, ProducerClientIDDefault),
 		ConsumerGroupID:  lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
 		TLSEnabled:       lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
@@ -82,6 +82,6 @@ func lookupBoolEnv(envVar string, defaultValue bool) bool {
 }
 
 func (c CanaryConfig) String() string {
-	return fmt.Sprintf("{BootstrapServers:%s, Topic:%s, SendRate:%d ms, ProducerClientID:%s, ConsumerGroupID:%s, TLSEnabled:%t}",
-		c.BootstrapServers, c.Topic, c.SendRate, c.ProducerClientID, c.ConsumerGroupID, c.TLSEnabled)
+	return fmt.Sprintf("{BootstrapServers:%s, Topic:%s, Delay:%d ms, ProducerClientID:%s, ConsumerGroupID:%s, TLSEnabled:%t}",
+		c.BootstrapServers, c.Topic, c.Delay, c.ProducerClientID, c.ConsumerGroupID, c.TLSEnabled)
 }

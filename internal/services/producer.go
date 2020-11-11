@@ -51,7 +51,7 @@ func (p *Producer) Start() {
 			} else {
 				log.Printf("Message sent: partition=%d, offset=%d\n", partition, offset)
 			}
-			time.Sleep(time.Duration(p.config.SendRate) * time.Millisecond)
+			time.Sleep(time.Duration(p.config.Delay) * time.Millisecond)
 		}
 	}()
 }
