@@ -13,18 +13,16 @@ import (
 	"time"
 )
 
-// environment variables declaration
 const (
+	// environment variables declaration
 	BootstrapServersEnvVar = "KAFKA_BOOTSTRAP_SERVERS"
 	TopicEnvVar            = "TOPIC"
 	DelayEnvVar            = "DELAY_MS"
 	ProducerClientIDEnvVar = "PRODUCER_CLIENT_ID"
 	ConsumerGroupIDEnvVar  = "CONSUMER_GROUP_ID"
 	TLSEnabledEnvVar       = "TLS_ENABLED"
-)
 
-// default values for environment variables
-const (
+	// default values for environment variables
 	BootstrapServersDefault = "localhost:9092"
 	TopicDefault            = "strimzi-canary"
 	DelayDefault            = 1000
