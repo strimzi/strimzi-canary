@@ -8,7 +8,6 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"os"
 
@@ -72,15 +71,9 @@ func (cgh *consumerGroupHandler) Cleanup(sarama.ConsumerGroupSession) error {
 
 func (cgh *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for message := range claim.Messages() {
-		cm := jsonToCanaryMessage(message.Value)
+		cm := NewCanaryMessage(message.Value)
 		log.Printf("Message received: value=%+v, partition=%d, offset=%d", cm, message.Partition, message.Offset)
 		session.MarkMessage(message, "")
 	}
 	return nil
-}
-
-func jsonToCanaryMessage(value []byte) CanaryMessage {
-	var cm CanaryMessage
-	json.Unmarshal(value, &cm)
-	return cm
 }
