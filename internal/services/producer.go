@@ -18,6 +18,7 @@ import (
 type Producer struct {
 	config   *config.CanaryConfig
 	producer sarama.SyncProducer
+	index    int
 }
 
 func NewProducer(config *config.CanaryConfig) Service {
@@ -36,13 +37,12 @@ func NewProducer(config *config.CanaryConfig) Service {
 
 func (p *Producer) Start() {
 	log.Printf("Starting producer")
-	// TODO: define the actual payload based on the agreed JSON schema
-	payload := "payload"
 	go func() {
 		for {
+			cmJSON := p.newCanaryMessage().Json()
 			msg := &sarama.ProducerMessage{
 				Topic: p.config.Topic,
-				Value: sarama.StringEncoder(payload),
+				Value: sarama.StringEncoder(cmJSON),
 			}
 			log.Printf("Sending message: value=%s\n", msg.Value)
 			partition, offset, err := p.producer.SendMessage(msg)
@@ -64,4 +64,15 @@ func (p *Producer) Stop() {
 		os.Exit(1)
 	}
 	log.Printf("Producer closed")
+}
+
+func (p *Producer) newCanaryMessage() CanaryMessage {
+	p.index++
+	timestamp := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
+	cm := CanaryMessage{
+		ProducerID: p.config.ProducerClientID,
+		MessageID:  p.index,
+		Timestamp:  timestamp,
+	}
+	return cm
 }
