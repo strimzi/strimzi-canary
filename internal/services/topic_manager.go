@@ -107,10 +107,10 @@ func (tm *TopicManager) reconcile() {
 
 		if len(metadata[0].Partitions) < len(brokers) {
 			log.Printf("Cluster scaled up, need to add partitions")
-			// TODO: logic for adding partitions and assigning them
+			// TODO: logic for adding partitions and assigning replicas across more brokers
 		} else if len(metadata[0].Partitions) > len(brokers) {
 			log.Printf("Cluster scaled down, need to declare 'orphan' partitions")
-			// TODO: need to track "orphan" partitions to avoid producer sending to them
+			// TODO: need to track "orphan" partitions to avoid producer sending to them but anyway assigning replicas across less brokers
 		}
 	}
 }
