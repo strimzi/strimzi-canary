@@ -17,6 +17,7 @@ const (
 	// environment variables declaration
 	BootstrapServersEnvVar = "KAFKA_BOOTSTRAP_SERVERS"
 	TopicEnvVar            = "TOPIC"
+	TopicReconcileEnvVar   = "TOPIC_RECONCILE_MS"
 	DelayEnvVar            = "DELAY_MS"
 	ProducerClientIDEnvVar = "PRODUCER_CLIENT_ID"
 	ConsumerGroupIDEnvVar  = "CONSUMER_GROUP_ID"
@@ -25,6 +26,7 @@ const (
 	// default values for environment variables
 	BootstrapServersDefault = "localhost:9092"
 	TopicDefault            = "strimzi-canary"
+	TopicReconcileDefault   = 30000
 	DelayDefault            = 1000
 	ProducerClientIDDefault = "strimzi-canary-producer"
 	ConsumerGroupIDDefault  = "strimzi-canary-consumer"
@@ -35,6 +37,7 @@ const (
 type CanaryConfig struct {
 	BootstrapServers string
 	Topic            string
+	TopicReconcile   time.Duration
 	Delay            time.Duration
 	ProducerClientID string
 	ConsumerGroupID  string
@@ -45,6 +48,7 @@ func NewCanaryConfig() *CanaryConfig {
 	var config CanaryConfig = CanaryConfig{
 		BootstrapServers: lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),
 		Topic:            lookupStringEnv(TopicEnvVar, TopicDefault),
+		TopicReconcile:   time.Duration(lookupIntEnv(TopicReconcileEnvVar, TopicReconcileDefault)),
 		Delay:            time.Duration(lookupIntEnv(DelayEnvVar, DelayDefault)),
 		ProducerClientID: lookupStringEnv(ProducerClientIDEnvVar, ProducerClientIDDefault),
 		ConsumerGroupID:  lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
@@ -80,6 +84,6 @@ func lookupBoolEnv(envVar string, defaultValue bool) bool {
 }
 
 func (c CanaryConfig) String() string {
-	return fmt.Sprintf("{BootstrapServers:%s, Topic:%s, Delay:%d ms, ProducerClientID:%s, ConsumerGroupID:%s, TLSEnabled:%t}",
-		c.BootstrapServers, c.Topic, c.Delay, c.ProducerClientID, c.ConsumerGroupID, c.TLSEnabled)
+	return fmt.Sprintf("{BootstrapServers:%s, Topic:%s, TopicReconcile:%d ms, Delay:%d ms, ProducerClientID:%s, ConsumerGroupID:%s, TLSEnabled:%t}",
+		c.BootstrapServers, c.Topic, c.TopicReconcile, c.Delay, c.ProducerClientID, c.ConsumerGroupID, c.TLSEnabled)
 }

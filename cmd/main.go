@@ -22,6 +22,9 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGKILL)
 
+	topicManager := services.NewTopicManager(config)
+	topicManager.Start()
+
 	producer := services.NewProducer(config)
 	producer.Start()
 
@@ -32,6 +35,7 @@ func main() {
 	case sig := <-signals:
 		log.Printf("Got signal: %v\n", sig)
 	}
+	topicManager.Stop()
 	producer.Stop()
 	consumer.Stop()
 	log.Printf("Strimzi canary stopped")
