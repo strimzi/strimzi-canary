@@ -3,7 +3,7 @@
 // License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
 //
 
-// Package services defines an interface for canary services and related implementations
+// Package services defines some canary related services
 package services
 
 import (
@@ -15,50 +15,56 @@ import (
 	"github.com/strimzi/strimzi-canary/internal/config"
 )
 
-type Producer struct {
+type ProducerService interface {
+	Send(numPartitions int)
+	Close()
+}
+
+type producerService struct {
 	config   *config.CanaryConfig
 	producer sarama.SyncProducer
 	index    int
 }
 
-func NewProducer(config *config.CanaryConfig) Service {
-	// TODO: add specific producer configuration
-	producer, err := sarama.NewSyncProducer([]string{config.BootstrapServers}, nil)
+func NewProducerService(config *config.CanaryConfig) ProducerService {
+	producerConfig := sarama.NewConfig()
+	// set manual partitioner in order to specify the destination partition on sending
+	producerConfig.Producer.Partitioner = sarama.NewManualPartitioner
+	producerConfig.Producer.Return.Successes = true
+	producer, err := sarama.NewSyncProducer([]string{config.BootstrapServers}, producerConfig)
 	if err != nil {
 		log.Printf("Error creating the Sarama sync producer: %v", err)
 		panic(err)
 	}
-	p := Producer{
+	ps := producerService{
 		config:   config,
 		producer: producer,
 	}
-	return &p
+	return &ps
 }
 
-func (p *Producer) Start() {
-	log.Printf("Starting producer")
-	go func() {
-		for {
-			cmJSON := p.newCanaryMessage().Json()
-			msg := &sarama.ProducerMessage{
-				Topic: p.config.Topic,
-				Value: sarama.StringEncoder(cmJSON),
-			}
-			log.Printf("Sending message: value=%s\n", msg.Value)
-			partition, offset, err := p.producer.SendMessage(msg)
-			if err != nil {
-				log.Printf("Erros sending message: %v\n", err)
-			} else {
-				log.Printf("Message sent: partition=%d, offset=%d\n", partition, offset)
-			}
-			time.Sleep(time.Duration(p.config.Delay) * time.Millisecond)
+func (ps *producerService) Send(numPartitions int) {
+	msg := &sarama.ProducerMessage{
+		Topic: ps.config.Topic,
+	}
+	for i := 0; i < numPartitions; i++ {
+		// build the message JSON payload and send to the current partition
+		cmJSON := ps.newCanaryMessage().Json()
+		msg.Value = sarama.StringEncoder(cmJSON)
+		msg.Partition = int32(i)
+		log.Printf("Sending message: value=%s on partition=%d\n", msg.Value, msg.Partition)
+		partition, offset, err := ps.producer.SendMessage(msg)
+		if err != nil {
+			log.Printf("Erros sending message: %v\n", err)
+		} else {
+			log.Printf("Message sent: partition=%d, offset=%d\n", partition, offset)
 		}
-	}()
+	}
 }
 
-func (p *Producer) Stop() {
-	log.Printf("Stopping producer")
-	err := p.producer.Close()
+func (ps *producerService) Close() {
+	log.Printf("Closing producer")
+	err := ps.producer.Close()
 	if err != nil {
 		log.Printf("Error closing the Sarama sync producer: %v", err)
 		os.Exit(1)
@@ -66,12 +72,12 @@ func (p *Producer) Stop() {
 	log.Printf("Producer closed")
 }
 
-func (p *Producer) newCanaryMessage() CanaryMessage {
-	p.index++
+func (ps *producerService) newCanaryMessage() CanaryMessage {
+	ps.index++
 	timestamp := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
 	cm := CanaryMessage{
-		ProducerID: p.config.ProducerClientID,
-		MessageID:  p.index,
+		ProducerID: ps.config.ProducerClientID,
+		MessageID:  ps.index,
 		Timestamp:  timestamp,
 	}
 	return cm

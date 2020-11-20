@@ -12,6 +12,7 @@ import (
 
 	"github.com/strimzi/strimzi-canary/internal/config"
 	"github.com/strimzi/strimzi-canary/internal/services"
+	"github.com/strimzi/strimzi-canary/internal/workers"
 )
 
 func main() {
@@ -22,21 +23,20 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGKILL)
 
-	topicManager := services.NewTopicManager(config)
-	topicManager.Start()
+	topicService := services.NewTopicService(config)
+	producerService := services.NewProducerService(config)
 
-	producer := services.NewProducer(config)
-	producer.Start()
+	canaryManager := workers.NewCanaryManager(config, topicService, producerService)
+	canaryManager.Start()
 
-	consumer := services.NewConsumer(config)
+	consumer := workers.NewConsumer(config)
 	consumer.Start()
 
 	select {
 	case sig := <-signals:
 		log.Printf("Got signal: %v\n", sig)
 	}
-	topicManager.Stop()
-	producer.Stop()
+	canaryManager.Stop()
 	consumer.Stop()
 	log.Printf("Strimzi canary stopped")
 }

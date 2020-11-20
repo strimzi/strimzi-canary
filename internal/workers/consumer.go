@@ -3,8 +3,8 @@
 // License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
 //
 
-// Package services defines an interface for canary services and related implementations
-package services
+// Package workers defines an interface for canary workers and related implementations
+package workers
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/strimzi/strimzi-canary/internal/config"
+	"github.com/strimzi/strimzi-canary/internal/services"
 )
 
 type Consumer struct {
@@ -20,7 +21,7 @@ type Consumer struct {
 	consumerGroup sarama.ConsumerGroup
 }
 
-func NewConsumer(config *config.CanaryConfig) Service {
+func NewConsumer(config *config.CanaryConfig) Worker {
 	// TODO: add specific consumer configuration
 	consumerGroup, err := sarama.NewConsumerGroup([]string{config.BootstrapServers}, config.ConsumerGroupID, nil)
 	if err != nil {
@@ -71,7 +72,7 @@ func (cgh *consumerGroupHandler) Cleanup(sarama.ConsumerGroupSession) error {
 
 func (cgh *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for message := range claim.Messages() {
-		cm := NewCanaryMessage(message.Value)
+		cm := services.NewCanaryMessage(message.Value)
 		log.Printf("Message received: value=%+v, partition=%d, offset=%d", cm, message.Partition, message.Offset)
 		session.MarkMessage(message, "")
 	}
