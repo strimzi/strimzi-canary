@@ -28,11 +28,6 @@ type topicService struct {
 }
 
 func NewTopicService(canaryConfig *config.CanaryConfig, client sarama.Client) TopicService {
-	/*
-		adminConfig := sarama.NewConfig()
-		adminConfig.Version = sarama.V2_6_0_0
-		admin, err := sarama.NewClusterAdmin([]string{canaryConfig.BootstrapServers}, adminConfig)
-	*/
 	admin, err := sarama.NewClusterAdminFromClient(client)
 	if err != nil {
 		log.Printf("Error creating the Sarama cluster admin: %v", err)
