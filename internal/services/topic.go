@@ -17,43 +17,49 @@ import (
 )
 
 type TopicService interface {
-	Reconcile() (int, map[int32][]int32, error)
+	Reconcile() (int, map[int32][]int32, bool, error)
 	Close()
 }
 
 type topicService struct {
-	config *config.CanaryConfig
-	admin  sarama.ClusterAdmin
+	canaryConfig *config.CanaryConfig
+	client       sarama.Client
+	admin        sarama.ClusterAdmin
 }
 
-func NewTopicService(config *config.CanaryConfig) TopicService {
-	adminConfig := sarama.NewConfig()
-	adminConfig.Version = sarama.V2_6_0_0
-	admin, err := sarama.NewClusterAdmin([]string{config.BootstrapServers}, adminConfig)
+func NewTopicService(canaryConfig *config.CanaryConfig, client sarama.Client) TopicService {
+	/*
+		adminConfig := sarama.NewConfig()
+		adminConfig.Version = sarama.V2_6_0_0
+		admin, err := sarama.NewClusterAdmin([]string{canaryConfig.BootstrapServers}, adminConfig)
+	*/
+	admin, err := sarama.NewClusterAdminFromClient(client)
 	if err != nil {
 		log.Printf("Error creating the Sarama cluster admin: %v", err)
 		panic(err)
 	}
 	ts := topicService{
-		config: config,
-		admin:  admin,
+		canaryConfig: canaryConfig,
+		client:       client,
+		admin:        admin,
 	}
 	return &ts
 }
 
-func (ts *topicService) Reconcile() (int, map[int32][]int32, error) {
+func (ts *topicService) Reconcile() (int, map[int32][]int32, bool, error) {
+	refresh := false
 	// getting brokers for assigning canary topic replicas accordingly
 	// on creation or cluster scale up/down when topic already exists
 	brokers, _, err := ts.admin.DescribeCluster()
 	if err != nil {
 		log.Printf("Error describing cluster: %v", err)
-		return 0, nil, err
+		return 0, nil, refresh, err
 	}
 
-	metadata, err := ts.admin.DescribeTopics([]string{ts.config.Topic})
+	metadata, err := ts.admin.DescribeTopics([]string{ts.canaryConfig.Topic})
 	if err != nil {
-		log.Printf("Error retrieving metadata for topic %s: %v", ts.config.Topic, err)
-		return len(brokers), nil, err
+		log.Printf("Error retrieving metadata for topic %s: %v", ts.canaryConfig.Topic, err)
+		return len(brokers), nil, refresh, err
 	}
 
 	var assignments map[int32][]int32
@@ -62,7 +68,7 @@ func (ts *topicService) Reconcile() (int, map[int32][]int32, error) {
 		log.Printf("The canary topic %s doesn't exist\n", metadata[0].Name)
 		if assignments, err = ts.createTopic(len(brokers)); err != nil {
 			log.Printf("Error creating topic %s: %v", metadata[0].Name, err)
-			return len(brokers), assignments, err
+			return len(brokers), assignments, refresh, err
 		}
 		log.Printf("The canary topic %s was created\n", metadata[0].Name)
 	} else {
@@ -73,13 +79,14 @@ func (ts *topicService) Reconcile() (int, map[int32][]int32, error) {
 		// we should check current assignments, leaders and maybe forcing a leader election (not supported by Sarama right now)
 		// TODO
 
+		refresh = len(brokers) != len(metadata[0].Partitions)
 		if assignments, err = ts.alterTopic(len(metadata[0].Partitions), len(brokers)); err != nil {
 			log.Printf("Error altering topic %s: %v", metadata[0].Name, err)
-			return len(brokers), assignments, err
+			return len(brokers), assignments, refresh, err
 		}
 		ts.checkTopic(len(brokers), metadata[0])
 	}
-	return len(brokers), assignments, err
+	return len(brokers), assignments, refresh, err
 }
 
 func (ts *topicService) Close() {
@@ -107,7 +114,7 @@ func (ts *topicService) createTopic(brokersNumber int) (map[int32][]int32, error
 		ReplicaAssignment: assignments,
 		ConfigEntries:     topicConfig,
 	}
-	err := ts.admin.CreateTopic(ts.config.Topic, &topicDetail, false)
+	err := ts.admin.CreateTopic(ts.canaryConfig.Topic, &topicDetail, false)
 	return assignments, err
 }
 
@@ -125,10 +132,10 @@ func (ts *topicService) alterTopic(currentPartitions int, brokersNumber int) (ma
 	// less partitions than brokers (scale up)
 	if currentPartitions < brokersNumber {
 		// passing the assigments just for the partitions that needs to be created
-		err = ts.admin.CreatePartitions(ts.config.Topic, int32(brokersNumber), ass[currentPartitions:], false)
+		err = ts.admin.CreatePartitions(ts.canaryConfig.Topic, int32(brokersNumber), ass[currentPartitions:], false)
 	} else {
 		// more or equals partitions than brokers, just need reassignment
-		err = ts.admin.AlterPartitionReassignments(ts.config.Topic, ass)
+		err = ts.admin.AlterPartitionReassignments(ts.canaryConfig.Topic, ass)
 	}
 	return assignments, err
 }

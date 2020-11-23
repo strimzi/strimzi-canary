@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Shopify/sarama"
 	"github.com/strimzi/strimzi-canary/internal/config"
 	"github.com/strimzi/strimzi-canary/internal/services"
 	"github.com/strimzi/strimzi-canary/internal/workers"
@@ -17,26 +18,36 @@ import (
 
 func main() {
 	// get canary configuration
-	config := config.NewCanaryConfig()
-	log.Printf("Starting Strimzi canary tool with config: %+v\n", config)
+	canaryConfig := config.NewCanaryConfig()
+	log.Printf("Starting Strimzi canary tool with config: %+v\n", canaryConfig)
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGKILL)
 
-	topicService := services.NewTopicService(config)
-	producerService := services.NewProducerService(config)
+	client := newClient(canaryConfig)
 
-	canaryManager := workers.NewCanaryManager(config, topicService, producerService)
+	topicService := services.NewTopicService(canaryConfig, client)
+	producerService := services.NewProducerService(canaryConfig, client)
+	consumerService := services.NewConsumerService(canaryConfig, client)
+
+	canaryManager := workers.NewCanaryManager(canaryConfig, topicService, producerService, consumerService)
 	canaryManager.Start()
-
-	consumer := workers.NewConsumer(config)
-	consumer.Start()
 
 	select {
 	case sig := <-signals:
 		log.Printf("Got signal: %v\n", sig)
 	}
 	canaryManager.Stop()
-	consumer.Stop()
 	log.Printf("Strimzi canary stopped")
+}
+
+func newClient(canaryConfig *config.CanaryConfig) sarama.Client {
+	config := sarama.NewConfig()
+	config.Version = sarama.V2_6_0_0
+	// set manual partitioner in order to specify the destination partition on sending
+	config.Producer.Partitioner = sarama.NewManualPartitioner
+	config.Producer.Return.Successes = true
+	// TODO: handling error
+	client, _ := sarama.NewClient([]string{canaryConfig.BootstrapServers}, config)
+	return client
 }

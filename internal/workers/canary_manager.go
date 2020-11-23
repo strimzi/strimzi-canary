@@ -16,18 +16,20 @@ import (
 )
 
 type CanaryManager struct {
-	config          *config.CanaryConfig
+	canaryConfig    *config.CanaryConfig
 	topicService    services.TopicService
 	producerService services.ProducerService
+	consumerService services.ConsumerService
 	stop            chan struct{}
 	syncStop        sync.WaitGroup
 }
 
-func NewCanaryManager(config *config.CanaryConfig, topicService services.TopicService, producerService services.ProducerService) Worker {
+func NewCanaryManager(canaryConfig *config.CanaryConfig, topicService services.TopicService, producerService services.ProducerService, consumerService services.ConsumerService) Worker {
 	cm := CanaryManager{
-		config:          config,
+		canaryConfig:    canaryConfig,
 		topicService:    topicService,
 		producerService: producerService,
+		consumerService: consumerService,
 	}
 	return &cm
 }
@@ -40,7 +42,7 @@ func (cm *CanaryManager) Start() {
 
 	// start first reconcile immediately
 	cm.reconcile()
-	ticker := time.NewTicker(cm.config.TopicReconcile * time.Millisecond)
+	ticker := time.NewTicker(cm.canaryConfig.TopicReconcile * time.Millisecond)
 	go func() {
 		for {
 			select {
@@ -55,6 +57,8 @@ func (cm *CanaryManager) Start() {
 			}
 		}
 	}()
+	// start consumer service to get messages
+	cm.consumerService.Consume()
 }
 
 func (cm *CanaryManager) Stop() {
@@ -65,6 +69,7 @@ func (cm *CanaryManager) Stop() {
 	cm.syncStop.Wait()
 
 	cm.producerService.Close()
+	cm.consumerService.Close()
 	cm.topicService.Close()
 
 	log.Printf("Canary manager closed")
@@ -75,7 +80,11 @@ func (cm *CanaryManager) reconcile() {
 
 	// don't care about assignments, for now.
 	// producer just needs to send from partition 0 to brokersNumber - 1
-	if brokersNumber, _, err := cm.topicService.Reconcile(); err == nil {
+	if brokersNumber, _, refresh, err := cm.topicService.Reconcile(); err == nil {
+		if refresh {
+			cm.consumerService.Refresh()
+			cm.producerService.Refresh()
+		}
 		cm.producerService.Send(brokersNumber)
 	}
 

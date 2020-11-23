@@ -17,35 +17,34 @@ import (
 
 type ProducerService interface {
 	Send(numPartitions int)
+	Refresh()
 	Close()
 }
 
 type producerService struct {
-	config   *config.CanaryConfig
-	producer sarama.SyncProducer
-	index    int
+	canaryConfig *config.CanaryConfig
+	client       sarama.Client
+	producer     sarama.SyncProducer
+	index        int
 }
 
-func NewProducerService(config *config.CanaryConfig) ProducerService {
-	producerConfig := sarama.NewConfig()
-	// set manual partitioner in order to specify the destination partition on sending
-	producerConfig.Producer.Partitioner = sarama.NewManualPartitioner
-	producerConfig.Producer.Return.Successes = true
-	producer, err := sarama.NewSyncProducer([]string{config.BootstrapServers}, producerConfig)
+func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client) ProducerService {
+	producer, err := sarama.NewSyncProducerFromClient(client)
 	if err != nil {
 		log.Printf("Error creating the Sarama sync producer: %v", err)
 		panic(err)
 	}
 	ps := producerService{
-		config:   config,
-		producer: producer,
+		canaryConfig: canaryConfig,
+		client:       client,
+		producer:     producer,
 	}
 	return &ps
 }
 
 func (ps *producerService) Send(numPartitions int) {
 	msg := &sarama.ProducerMessage{
-		Topic: ps.config.Topic,
+		Topic: ps.canaryConfig.Topic,
 	}
 	for i := 0; i < numPartitions; i++ {
 		// build the message JSON payload and send to the current partition
@@ -59,6 +58,13 @@ func (ps *producerService) Send(numPartitions int) {
 		} else {
 			log.Printf("Message sent: partition=%d, offset=%d\n", partition, offset)
 		}
+	}
+}
+
+func (ps *producerService) Refresh() {
+	log.Printf("Producer refreshing metadata")
+	if err := ps.client.RefreshMetadata(ps.canaryConfig.Topic); err != nil {
+		log.Printf("Errors producer refreshing metadata: %v\n", err)
 	}
 }
 
@@ -76,7 +82,7 @@ func (ps *producerService) newCanaryMessage() CanaryMessage {
 	ps.index++
 	timestamp := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
 	cm := CanaryMessage{
-		ProducerID: ps.config.ProducerClientID,
+		ProducerID: ps.canaryConfig.ProducerClientID,
 		MessageID:  ps.index,
 		Timestamp:  timestamp,
 	}
