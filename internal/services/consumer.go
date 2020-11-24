@@ -15,13 +15,17 @@ import (
 	"github.com/strimzi/strimzi-canary/internal/config"
 )
 
+// ConsumerService defines the service for consuming messages
 type ConsumerService struct {
 	canaryConfig  *config.CanaryConfig
 	client        sarama.Client
 	consumerGroup sarama.ConsumerGroup
-	cancel        context.CancelFunc
+	// reference to the function for cancelling the Sarama consumer group context
+	// in order to ending the session and allowing a rejoin with rebalancing
+	cancel context.CancelFunc
 }
 
+// NewConsumerService returns an instance of ConsumerService
 func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ConsumerService {
 	consumerGroup, err := sarama.NewConsumerGroupFromClient(canaryConfig.ConsumerGroupID, client)
 	if err != nil {
@@ -36,6 +40,10 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 	return &cs
 }
 
+// Consume starts a Sarama consumer group instance consuming messages
+//
+// This function starts a goroutine calling in an endless loop the consume on the Sarama consumer group
+// It can be exited cancelling the corresponding context through the cancel function provided by the ConsumerService instance
 func (cs *ConsumerService) Consume() {
 	cgh := &consumerGroupHandler{}
 	// creating new context with cancellation, for exiting Consume when metadata refresh is needed
@@ -56,6 +64,11 @@ func (cs *ConsumerService) Consume() {
 	}()
 }
 
+// Refresh does a refresh metadata
+//
+// Because of the way how Sarama consumer group works, the refresh is done in the following way:
+// 1. calling the cancel context function for allowing the consumer group exiting the Consume function
+// 2. calling again the Consume for refreshing metadata internally in Sarama and rejoining the consumer group
 func (cs *ConsumerService) Refresh() {
 	if cs.cancel != nil {
 		// cancel the consumer context to allow exiting the Consume loop
@@ -66,6 +79,7 @@ func (cs *ConsumerService) Refresh() {
 	}
 }
 
+// Close closes the underneath Sarama consumer group instance
 func (cs *ConsumerService) Close() {
 	log.Printf("Closing consumer")
 	err := cs.consumerGroup.Close()
@@ -76,7 +90,7 @@ func (cs *ConsumerService) Close() {
 	log.Printf("Consumer closed")
 }
 
-// struct defining the handler for the consuming Sarama method
+// consumerGroupHandler defines the handler for the consuming Sarama functions
 type consumerGroupHandler struct {
 }
 

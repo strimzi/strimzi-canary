@@ -44,6 +44,7 @@ type CanaryConfig struct {
 	TLSEnabled       bool
 }
 
+// NewCanaryConfig returns an configuration instance from environment variables
 func NewCanaryConfig() *CanaryConfig {
 	var config CanaryConfig = CanaryConfig{
 		BootstrapServers: lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),

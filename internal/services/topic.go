@@ -15,18 +15,24 @@ import (
 	"github.com/strimzi/strimzi-canary/internal/config"
 )
 
+// TopicReconcileResult contains the result of a topic reconcile
 type TopicReconcileResult struct {
-	BrokersNumber   int
-	Assignments     map[int32][]int32
+	// new current number of brokers
+	BrokersNumber int
+	// new partitions assignments across brokers
+	Assignments map[int32][]int32
+	// if a refresh metadata is needed
 	RefreshMetadata bool
 }
 
+// TopicService defines the service for canary topic management
 type TopicService struct {
 	canaryConfig *config.CanaryConfig
 	client       sarama.Client
 	admin        sarama.ClusterAdmin
 }
 
+// NewTopicService returns an instance of TopicService
 func NewTopicService(canaryConfig *config.CanaryConfig, client sarama.Client) *TopicService {
 	admin, err := sarama.NewClusterAdminFromClient(client)
 	if err != nil {
@@ -41,6 +47,19 @@ func NewTopicService(canaryConfig *config.CanaryConfig, client sarama.Client) *T
 	return &ts
 }
 
+// Reconcile does a reconcile on the canary topic
+//
+// It first checks the number of brokers and gets the topic metadata
+// If topic doesn't exist it's created with a partitions assignments having
+// one leader partition for each broker
+//
+// It topic already exists, it checks the number of partitions compared to the current brokers
+// 1. if cluster scaled up, it adds partitions processing a reassignment
+// 2. if cluster scaled down, it just does a reassignment.
+// In case of cluster scaled down, the partitions above the number of brokers are considered orphans
+// and the producer will not send messages to him
+//
+// If a scale up, scale down, scale up happens, it forces a leader election for having preferred leaders
 func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 	result := TopicReconcileResult{0, nil, false}
 	// getting brokers for assigning canary topic replicas accordingly
@@ -71,20 +90,18 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 		// canary topic already exists, check replicas assignments
 		log.Printf("The canary topic %s already exists\n", topicMetadata.Name)
 
-		// if we scale up then scale down and then scale up again, the preferred leader are not elected immediately
-		// we should check current assignments, leaders and maybe forcing a leader election (not supported by Sarama right now)
-		// TODO
-
 		result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
 		if result.Assignments, err = ts.alterTopic(len(topicMetadata.Partitions), len(brokers)); err != nil {
 			log.Printf("Error altering topic %s: %v", topicMetadata.Name, err)
 			return result, err
 		}
 		ts.checkTopic(len(brokers), topicMetadata)
+		// TODO force a leader election. The feature is missing in Sarama library right now.
 	}
 	return result, err
 }
 
+// Close closes the underneath Sarama admin instance
 func (ts *TopicService) Close() {
 	log.Printf("Closing topic service")
 

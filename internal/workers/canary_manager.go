@@ -15,6 +15,7 @@ import (
 	"github.com/strimzi/strimzi-canary/internal/services"
 )
 
+// CanaryManager defines the manager driving the different producer, consumer and topic services
 type CanaryManager struct {
 	canaryConfig    *config.CanaryConfig
 	topicService    *services.TopicService
@@ -24,6 +25,7 @@ type CanaryManager struct {
 	syncStop        sync.WaitGroup
 }
 
+// NewCanaryManager returns an instance of the cananry manager worker
 func NewCanaryManager(canaryConfig *config.CanaryConfig, topicService *services.TopicService, producerService *services.ProducerService, consumerService *services.ConsumerService) Worker {
 	cm := CanaryManager{
 		canaryConfig:    canaryConfig,
@@ -34,6 +36,7 @@ func NewCanaryManager(canaryConfig *config.CanaryConfig, topicService *services.
 	return &cm
 }
 
+// Start runs a first reconcile and start a timer for periodic reconciling
 func (cm *CanaryManager) Start() {
 	log.Printf("Starting canary manager")
 
@@ -61,6 +64,7 @@ func (cm *CanaryManager) Start() {
 	cm.consumerService.Consume()
 }
 
+// Stop stops the services and the reconcile timer
 func (cm *CanaryManager) Stop() {
 	log.Printf("Stopping canary manager")
 

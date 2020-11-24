@@ -15,13 +15,16 @@ import (
 	"github.com/strimzi/strimzi-canary/internal/config"
 )
 
+// ProducerService defines the service for producing messages
 type ProducerService struct {
 	canaryConfig *config.CanaryConfig
 	client       sarama.Client
 	producer     sarama.SyncProducer
-	index        int
+	// index of the next message to send
+	index int
 }
 
+// NewProducerService returns an instance of ProductService
 func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ProducerService {
 	producer, err := sarama.NewSyncProducerFromClient(client)
 	if err != nil {
@@ -36,6 +39,7 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 	return &ps
 }
 
+// Send sends one message to each partition from 0 to numPartitions specified as parameter
 func (ps *ProducerService) Send(numPartitions int) {
 	msg := &sarama.ProducerMessage{
 		Topic: ps.canaryConfig.Topic,
@@ -55,6 +59,7 @@ func (ps *ProducerService) Send(numPartitions int) {
 	}
 }
 
+// Refresh does a refresh metadata on the underneath Sarama client
 func (ps *ProducerService) Refresh() {
 	log.Printf("Producer refreshing metadata")
 	if err := ps.client.RefreshMetadata(ps.canaryConfig.Topic); err != nil {
@@ -62,6 +67,7 @@ func (ps *ProducerService) Refresh() {
 	}
 }
 
+// Close closes the underneath Sarama producer instance
 func (ps *ProducerService) Close() {
 	log.Printf("Closing producer")
 	err := ps.producer.Close()
