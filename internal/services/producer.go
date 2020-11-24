@@ -15,26 +15,20 @@ import (
 	"github.com/strimzi/strimzi-canary/internal/config"
 )
 
-type ProducerService interface {
-	Send(numPartitions int)
-	Refresh()
-	Close()
-}
-
-type producerService struct {
+type ProducerService struct {
 	canaryConfig *config.CanaryConfig
 	client       sarama.Client
 	producer     sarama.SyncProducer
 	index        int
 }
 
-func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client) ProducerService {
+func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ProducerService {
 	producer, err := sarama.NewSyncProducerFromClient(client)
 	if err != nil {
 		log.Printf("Error creating the Sarama sync producer: %v", err)
 		panic(err)
 	}
-	ps := producerService{
+	ps := ProducerService{
 		canaryConfig: canaryConfig,
 		client:       client,
 		producer:     producer,
@@ -42,7 +36,7 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 	return &ps
 }
 
-func (ps *producerService) Send(numPartitions int) {
+func (ps *ProducerService) Send(numPartitions int) {
 	msg := &sarama.ProducerMessage{
 		Topic: ps.canaryConfig.Topic,
 	}
@@ -61,14 +55,14 @@ func (ps *producerService) Send(numPartitions int) {
 	}
 }
 
-func (ps *producerService) Refresh() {
+func (ps *ProducerService) Refresh() {
 	log.Printf("Producer refreshing metadata")
 	if err := ps.client.RefreshMetadata(ps.canaryConfig.Topic); err != nil {
 		log.Printf("Errors producer refreshing metadata: %v\n", err)
 	}
 }
 
-func (ps *producerService) Close() {
+func (ps *ProducerService) Close() {
 	log.Printf("Closing producer")
 	err := ps.producer.Close()
 	if err != nil {
@@ -78,7 +72,7 @@ func (ps *producerService) Close() {
 	log.Printf("Producer closed")
 }
 
-func (ps *producerService) newCanaryMessage() CanaryMessage {
+func (ps *ProducerService) newCanaryMessage() CanaryMessage {
 	ps.index++
 	timestamp := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
 	cm := CanaryMessage{

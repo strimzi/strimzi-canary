@@ -17,14 +17,14 @@ import (
 
 type CanaryManager struct {
 	canaryConfig    *config.CanaryConfig
-	topicService    services.TopicService
-	producerService services.ProducerService
-	consumerService services.ConsumerService
+	topicService    *services.TopicService
+	producerService *services.ProducerService
+	consumerService *services.ConsumerService
 	stop            chan struct{}
 	syncStop        sync.WaitGroup
 }
 
-func NewCanaryManager(canaryConfig *config.CanaryConfig, topicService services.TopicService, producerService services.ProducerService, consumerService services.ConsumerService) Worker {
+func NewCanaryManager(canaryConfig *config.CanaryConfig, topicService *services.TopicService, producerService *services.ProducerService, consumerService *services.ConsumerService) Worker {
 	cm := CanaryManager{
 		canaryConfig:    canaryConfig,
 		topicService:    topicService,
@@ -80,12 +80,12 @@ func (cm *CanaryManager) reconcile() {
 
 	// don't care about assignments, for now.
 	// producer just needs to send from partition 0 to brokersNumber - 1
-	if brokersNumber, _, refresh, err := cm.topicService.Reconcile(); err == nil {
-		if refresh {
+	if result, err := cm.topicService.Reconcile(); err == nil {
+		if result.RefreshMetadata {
 			cm.consumerService.Refresh()
 			cm.producerService.Refresh()
 		}
-		cm.producerService.Send(brokersNumber)
+		cm.producerService.Send(result.BrokersNumber)
 	}
 
 	log.Printf("... reconcile done")

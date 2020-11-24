@@ -15,26 +15,20 @@ import (
 	"github.com/strimzi/strimzi-canary/internal/config"
 )
 
-type ConsumerService interface {
-	Consume()
-	Refresh()
-	Close()
-}
-
-type consumerService struct {
+type ConsumerService struct {
 	canaryConfig  *config.CanaryConfig
 	client        sarama.Client
 	consumerGroup sarama.ConsumerGroup
 	cancel        context.CancelFunc
 }
 
-func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client) ConsumerService {
+func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ConsumerService {
 	consumerGroup, err := sarama.NewConsumerGroupFromClient(canaryConfig.ConsumerGroupID, client)
 	if err != nil {
 		log.Printf("Error creating the Sarama consumer: %v", err)
 		panic(err)
 	}
-	cs := consumerService{
+	cs := ConsumerService{
 		canaryConfig:  canaryConfig,
 		client:        client,
 		consumerGroup: consumerGroup,
@@ -42,7 +36,7 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 	return &cs
 }
 
-func (cs *consumerService) Consume() {
+func (cs *ConsumerService) Consume() {
 	cgh := &consumerGroupHandler{}
 	// creating new context with cancellation, for exiting Consume when metadata refresh is needed
 	ctx, cancel := context.WithCancel(context.Background())
@@ -62,7 +56,7 @@ func (cs *consumerService) Consume() {
 	}()
 }
 
-func (cs *consumerService) Refresh() {
+func (cs *ConsumerService) Refresh() {
 	if cs.cancel != nil {
 		// cancel the consumer context to allow exiting the Consume loop
 		// Consume will be called again to sync metadata and rejoining the group
@@ -72,7 +66,7 @@ func (cs *consumerService) Refresh() {
 	}
 }
 
-func (cs *consumerService) Close() {
+func (cs *ConsumerService) Close() {
 	log.Printf("Closing consumer")
 	err := cs.consumerGroup.Close()
 	if err != nil {

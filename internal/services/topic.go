@@ -8,7 +8,6 @@ package services
 
 import (
 	"log"
-	"math"
 	"os"
 	"strconv"
 
@@ -16,24 +15,25 @@ import (
 	"github.com/strimzi/strimzi-canary/internal/config"
 )
 
-type TopicService interface {
-	Reconcile() (int, map[int32][]int32, bool, error)
-	Close()
+type TopicReconcileResult struct {
+	BrokersNumber   int
+	Assignments     map[int32][]int32
+	RefreshMetadata bool
 }
 
-type topicService struct {
+type TopicService struct {
 	canaryConfig *config.CanaryConfig
 	client       sarama.Client
 	admin        sarama.ClusterAdmin
 }
 
-func NewTopicService(canaryConfig *config.CanaryConfig, client sarama.Client) TopicService {
+func NewTopicService(canaryConfig *config.CanaryConfig, client sarama.Client) *TopicService {
 	admin, err := sarama.NewClusterAdminFromClient(client)
 	if err != nil {
 		log.Printf("Error creating the Sarama cluster admin: %v", err)
 		panic(err)
 	}
-	ts := topicService{
+	ts := TopicService{
 		canaryConfig: canaryConfig,
 		client:       client,
 		admin:        admin,
@@ -41,50 +41,51 @@ func NewTopicService(canaryConfig *config.CanaryConfig, client sarama.Client) To
 	return &ts
 }
 
-func (ts *topicService) Reconcile() (int, map[int32][]int32, bool, error) {
-	refresh := false
+func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
+	result := TopicReconcileResult{0, nil, false}
 	// getting brokers for assigning canary topic replicas accordingly
 	// on creation or cluster scale up/down when topic already exists
 	brokers, _, err := ts.admin.DescribeCluster()
 	if err != nil {
 		log.Printf("Error describing cluster: %v", err)
-		return 0, nil, refresh, err
+		return result, err
 	}
+	result.BrokersNumber = len(brokers)
 
 	metadata, err := ts.admin.DescribeTopics([]string{ts.canaryConfig.Topic})
 	if err != nil {
 		log.Printf("Error retrieving metadata for topic %s: %v", ts.canaryConfig.Topic, err)
-		return len(brokers), nil, refresh, err
+		return result, err
 	}
+	topicMetadata := metadata[0]
 
-	var assignments map[int32][]int32
-	if metadata[0].Err == sarama.ErrUnknownTopicOrPartition {
+	if topicMetadata.Err == sarama.ErrUnknownTopicOrPartition {
 		// canary topic doesn't exist, going to create it
-		log.Printf("The canary topic %s doesn't exist\n", metadata[0].Name)
-		if assignments, err = ts.createTopic(len(brokers)); err != nil {
-			log.Printf("Error creating topic %s: %v", metadata[0].Name, err)
-			return len(brokers), assignments, refresh, err
+		log.Printf("The canary topic %s doesn't exist\n", topicMetadata.Name)
+		if result.Assignments, err = ts.createTopic(len(brokers)); err != nil {
+			log.Printf("Error creating topic %s: %v", topicMetadata.Name, err)
+			return result, err
 		}
-		log.Printf("The canary topic %s was created\n", metadata[0].Name)
+		log.Printf("The canary topic %s was created\n", topicMetadata.Name)
 	} else {
 		// canary topic already exists, check replicas assignments
-		log.Printf("The canary topic %s already exists\n", metadata[0].Name)
+		log.Printf("The canary topic %s already exists\n", topicMetadata.Name)
 
 		// if we scale up then scale down and then scale up again, the preferred leader are not elected immediately
 		// we should check current assignments, leaders and maybe forcing a leader election (not supported by Sarama right now)
 		// TODO
 
-		refresh = len(brokers) != len(metadata[0].Partitions)
-		if assignments, err = ts.alterTopic(len(metadata[0].Partitions), len(brokers)); err != nil {
-			log.Printf("Error altering topic %s: %v", metadata[0].Name, err)
-			return len(brokers), assignments, refresh, err
+		result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
+		if result.Assignments, err = ts.alterTopic(len(topicMetadata.Partitions), len(brokers)); err != nil {
+			log.Printf("Error altering topic %s: %v", topicMetadata.Name, err)
+			return result, err
 		}
-		ts.checkTopic(len(brokers), metadata[0])
+		ts.checkTopic(len(brokers), topicMetadata)
 	}
-	return len(brokers), assignments, refresh, err
+	return result, err
 }
 
-func (ts *topicService) Close() {
+func (ts *TopicService) Close() {
 	log.Printf("Closing topic service")
 
 	err := ts.admin.Close()
@@ -95,7 +96,7 @@ func (ts *topicService) Close() {
 	log.Printf("Topic service closed")
 }
 
-func (ts *topicService) createTopic(brokersNumber int) (map[int32][]int32, error) {
+func (ts *TopicService) createTopic(brokersNumber int) (map[int32][]int32, error) {
 	assignments, minISR := ts.assignments(0, brokersNumber)
 
 	v := strconv.Itoa(int(minISR))
@@ -113,7 +114,7 @@ func (ts *topicService) createTopic(brokersNumber int) (map[int32][]int32, error
 	return assignments, err
 }
 
-func (ts *topicService) alterTopic(currentPartitions int, brokersNumber int) (map[int32][]int32, error) {
+func (ts *TopicService) alterTopic(currentPartitions int, brokersNumber int) (map[int32][]int32, error) {
 	assignments, _ := ts.assignments(currentPartitions, brokersNumber)
 
 	ass := make([][]int32, len(assignments))
@@ -135,7 +136,7 @@ func (ts *topicService) alterTopic(currentPartitions int, brokersNumber int) (ma
 	return assignments, err
 }
 
-func (ts *topicService) checkTopic(brokersNumber int, metadata *sarama.TopicMetadata) {
+func (ts *TopicService) checkTopic(brokersNumber int, metadata *sarama.TopicMetadata) {
 	electLeader := false
 	if len(metadata.Partitions) == brokersNumber {
 		for _, p := range metadata.Partitions {
@@ -147,10 +148,10 @@ func (ts *topicService) checkTopic(brokersNumber int, metadata *sarama.TopicMeta
 	log.Printf("Elect leader = %t\n", electLeader)
 }
 
-func (ts *topicService) assignments(currentPartitions int, brokersNumber int) (map[int32][]int32, int) {
-	partitions := math.Max(float64(currentPartitions), float64(brokersNumber))
-	replicationFactor := math.Min(float64(brokersNumber), 3)
-	minISR := math.Max(1, replicationFactor-1)
+func (ts *TopicService) assignments(currentPartitions int, brokersNumber int) (map[int32][]int32, int) {
+	partitions := max(currentPartitions, brokersNumber)
+	replicationFactor := min(brokersNumber, 3)
+	minISR := max(1, replicationFactor-1)
 
 	assignments := make(map[int32][]int32, int(partitions))
 	for p := 0; p < int(partitions); p++ {
@@ -163,4 +164,18 @@ func (ts *topicService) assignments(currentPartitions int, brokersNumber int) (m
 	}
 	log.Printf("assignments = %v, minISR = %d", assignments, int(minISR))
 	return assignments, int(minISR)
+}
+
+func max(x, y int) int {
+	if x < y {
+		return y
+	}
+	return x
+}
+
+func min(x, y int) int {
+	if x > y {
+		return y
+	}
+	return x
 }
