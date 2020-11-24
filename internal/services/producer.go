@@ -76,7 +76,7 @@ func (ps *ProducerService) newCanaryMessage() CanaryMessage {
 	ps.index++
 	timestamp := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
 	cm := CanaryMessage{
-		ProducerID: ps.canaryConfig.ProducerClientID,
+		ProducerID: ps.canaryConfig.ClientID,
 		MessageID:  ps.index,
 		Timestamp:  timestamp,
 	}

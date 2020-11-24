@@ -19,7 +19,7 @@ const (
 	TopicEnvVar            = "TOPIC"
 	TopicReconcileEnvVar   = "TOPIC_RECONCILE_MS"
 	DelayEnvVar            = "DELAY_MS"
-	ProducerClientIDEnvVar = "PRODUCER_CLIENT_ID"
+	ClientIDEnvVar         = "CLIENT_ID"
 	ConsumerGroupIDEnvVar  = "CONSUMER_GROUP_ID"
 	TLSEnabledEnvVar       = "TLS_ENABLED"
 
@@ -28,8 +28,8 @@ const (
 	TopicDefault            = "strimzi-canary"
 	TopicReconcileDefault   = 30000
 	DelayDefault            = 1000
-	ProducerClientIDDefault = "strimzi-canary-producer"
-	ConsumerGroupIDDefault  = "strimzi-canary-consumer"
+	ClientIDDefault         = "strimzi-canary-client"
+	ConsumerGroupIDDefault  = "strimzi-canary-group"
 	TLSEnabledDefault       = false
 )
 
@@ -39,7 +39,7 @@ type CanaryConfig struct {
 	Topic            string
 	TopicReconcile   time.Duration
 	Delay            time.Duration
-	ProducerClientID string
+	ClientID         string
 	ConsumerGroupID  string
 	TLSEnabled       bool
 }
@@ -50,7 +50,7 @@ func NewCanaryConfig() *CanaryConfig {
 		Topic:            lookupStringEnv(TopicEnvVar, TopicDefault),
 		TopicReconcile:   time.Duration(lookupIntEnv(TopicReconcileEnvVar, TopicReconcileDefault)),
 		Delay:            time.Duration(lookupIntEnv(DelayEnvVar, DelayDefault)),
-		ProducerClientID: lookupStringEnv(ProducerClientIDEnvVar, ProducerClientIDDefault),
+		ClientID:         lookupStringEnv(ClientIDEnvVar, ClientIDDefault),
 		ConsumerGroupID:  lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
 		TLSEnabled:       lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
 	}
@@ -84,6 +84,6 @@ func lookupBoolEnv(envVar string, defaultValue bool) bool {
 }
 
 func (c CanaryConfig) String() string {
-	return fmt.Sprintf("{BootstrapServers:%s, Topic:%s, TopicReconcile:%d ms, Delay:%d ms, ProducerClientID:%s, ConsumerGroupID:%s, TLSEnabled:%t}",
-		c.BootstrapServers, c.Topic, c.TopicReconcile, c.Delay, c.ProducerClientID, c.ConsumerGroupID, c.TLSEnabled)
+	return fmt.Sprintf("{BootstrapServers:%s, Topic:%s, TopicReconcile:%d ms, Delay:%d ms, ClientID:%s, ConsumerGroupID:%s, TLSEnabled:%t}",
+		c.BootstrapServers, c.Topic, c.TopicReconcile, c.Delay, c.ClientID, c.ConsumerGroupID, c.TLSEnabled)
 }

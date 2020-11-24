@@ -44,7 +44,7 @@ func main() {
 func newClient(canaryConfig *config.CanaryConfig) sarama.Client {
 	config := sarama.NewConfig()
 	config.Version = sarama.V2_6_0_0
-	config.ClientID = "strimzi-canary"
+	config.ClientID = canaryConfig.ClientID
 	// set manual partitioner in order to specify the destination partition on sending
 	config.Producer.Partitioner = sarama.NewManualPartitioner
 	config.Producer.Return.Successes = true
