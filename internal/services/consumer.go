@@ -20,17 +20,18 @@ import (
 )
 
 var (
-	recordsConsumed = promauto.NewCounter(prometheus.CounterOpts{
+	recordsConsumed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name:      "records_consumed_total",
 		Namespace: "strimzi_canary",
 		Help:      "The total number of records consumed",
-	})
-	recordsLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:      "records_latency",
+	}, []string{"clientid", "partition"})
+
+	recordsConsumedLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:      "records_consumed_latency",
 		Namespace: "strimzi_canary",
-		Help:      "Records end to end latency",
+		Help:      "Records end-to-end latency in milliseconds",
 		Buckets:   []float64{100, 200, 400, 800, 1600},
-	}, []string{"partition"})
+	}, []string{"clientid", "partition"})
 )
 
 // ConsumerService defines the service for consuming messages
@@ -63,7 +64,9 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 // This function starts a goroutine calling in an endless loop the consume on the Sarama consumer group
 // It can be exited cancelling the corresponding context through the cancel function provided by the ConsumerService instance
 func (cs *ConsumerService) Consume() {
-	cgh := &consumerGroupHandler{}
+	cgh := &consumerGroupHandler{
+		consumerService: cs,
+	}
 	// creating new context with cancellation, for exiting Consume when metadata refresh is needed
 	ctx, cancel := context.WithCancel(context.Background())
 	cs.cancel = cancel
@@ -110,6 +113,7 @@ func (cs *ConsumerService) Close() {
 
 // consumerGroupHandler defines the handler for the consuming Sarama functions
 type consumerGroupHandler struct {
+	consumerService *ConsumerService
 }
 
 func (cgh *consumerGroupHandler) Setup(sarama.ConsumerGroupSession) error {
@@ -130,8 +134,12 @@ func (cgh *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSessio
 		duration := timestamp - cm.Timestamp
 		log.Printf("Message received: value=%+v, partition=%d, offset=%d, duration=%d ms", cm, message.Partition, message.Offset, duration)
 		session.MarkMessage(message, "")
-		recordsLatency.WithLabelValues(strconv.Itoa(int(message.Partition))).Observe(float64(duration))
-		recordsConsumed.Inc()
+		labels := prometheus.Labels{
+			"clientid":  cgh.consumerService.canaryConfig.ClientID,
+			"partition": strconv.Itoa(int(message.Partition)),
+		}
+		recordsConsumedLatency.With(labels).Observe(float64(duration))
+		recordsConsumed.With(labels).Inc()
 	}
 	return nil
 }
