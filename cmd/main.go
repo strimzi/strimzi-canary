@@ -12,6 +12,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/strimzi/strimzi-canary/internal/config"
+	"github.com/strimzi/strimzi-canary/internal/servers"
 	"github.com/strimzi/strimzi-canary/internal/services"
 	"github.com/strimzi/strimzi-canary/internal/workers"
 )
@@ -20,6 +21,9 @@ func main() {
 	// get canary configuration
 	canaryConfig := config.NewCanaryConfig()
 	log.Printf("Starting Strimzi canary tool with config: %+v\n", canaryConfig)
+
+	metricsServer := servers.NewMetricsServer()
+	metricsServer.Start()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGKILL)
@@ -38,6 +42,8 @@ func main() {
 		log.Printf("Got signal: %v\n", sig)
 	}
 	canaryManager.Stop()
+	metricsServer.Stop()
+
 	log.Printf("Strimzi canary stopped")
 }
 

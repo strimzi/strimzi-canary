@@ -12,7 +12,22 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
+)
+
+var (
+	recordsProduced = promauto.NewCounter(prometheus.CounterOpts{
+		Name:      "records_produced_total",
+		Namespace: "strimzi_canary",
+		Help:      "The total number of records produced",
+	})
+	recordsProducedFailed = promauto.NewCounter(prometheus.CounterOpts{
+		Name:      "records_produced_failed_total",
+		Namespace: "strimzi_canary",
+		Help:      "The total number of records failed to produce",
+	})
 )
 
 // ProducerService defines the service for producing messages
@@ -51,8 +66,10 @@ func (ps *ProducerService) Send(numPartitions int) {
 		msg.Partition = int32(i)
 		log.Printf("Sending message: value=%s on partition=%d\n", msg.Value, msg.Partition)
 		partition, offset, err := ps.producer.SendMessage(msg)
+		recordsProduced.Inc()
 		if err != nil {
 			log.Printf("Erros sending message: %v\n", err)
+			recordsProducedFailed.Inc()
 		} else {
 			log.Printf("Message sent: partition=%d, offset=%d\n", partition, offset)
 		}

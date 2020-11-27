@@ -10,9 +10,27 @@ import (
 	"context"
 	"log"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
+)
+
+var (
+	recordsConsumed = promauto.NewCounter(prometheus.CounterOpts{
+		Name:      "records_consumed_total",
+		Namespace: "strimzi_canary",
+		Help:      "The total number of records consumed",
+	})
+	recordsLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:      "records_latency",
+		Namespace: "strimzi_canary",
+		Help:      "Records end to end latency",
+		Buckets:   []float64{100, 200, 400, 800, 1600},
+	}, []string{"partition"})
 )
 
 // ConsumerService defines the service for consuming messages
@@ -107,9 +125,13 @@ func (cgh *consumerGroupHandler) Cleanup(sarama.ConsumerGroupSession) error {
 func (cgh *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	log.Printf("Consumer group handler consumeclaim\n")
 	for message := range claim.Messages() {
+		timestamp := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
 		cm := NewCanaryMessage(message.Value)
-		log.Printf("Message received: value=%+v, partition=%d, offset=%d", cm, message.Partition, message.Offset)
+		duration := timestamp - cm.Timestamp
+		log.Printf("Message received: value=%+v, partition=%d, offset=%d, duration=%d ms", cm, message.Partition, message.Offset, duration)
 		session.MarkMessage(message, "")
+		recordsLatency.WithLabelValues(strconv.Itoa(int(message.Partition))).Observe(float64(duration))
+		recordsConsumed.Inc()
 	}
 	return nil
 }
