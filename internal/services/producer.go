@@ -31,12 +31,8 @@ var (
 		Help:      "The total number of records failed to produce",
 	}, []string{"clientid", "partition"})
 
-	recordsProducedLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:      "records_produced_latency",
-		Namespace: "strimzi_canary",
-		Help:      "Records end-to-end latency in milliseconds",
-		Buckets:   []float64{100, 200, 400, 800, 1600},
-	}, []string{"clientid", "partition"})
+	// it's defined when the service is created because buckets are configurable
+	recordsProducedLatency *prometheus.HistogramVec
 )
 
 // ProducerService defines the service for producing messages
@@ -50,6 +46,13 @@ type ProducerService struct {
 
 // NewProducerService returns an instance of ProductService
 func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ProducerService {
+	recordsProducedLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:      "records_produced_latency",
+		Namespace: "strimzi_canary",
+		Help:      "Records produced latency in milliseconds",
+		Buckets:   canaryConfig.ProducerLatencyBuckets,
+	}, []string{"clientid", "partition"})
+
 	producer, err := sarama.NewSyncProducerFromClient(client)
 	if err != nil {
 		log.Printf("Error creating the Sarama sync producer: %v", err)
