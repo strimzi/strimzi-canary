@@ -27,7 +27,7 @@ var (
 	}, []string{"clientid", "partition"})
 
 	// it's defined when the service is created because buckets are configurable
-	recordsEntToEndLatency *prometheus.HistogramVec
+	recordsEndToEndLatency *prometheus.HistogramVec
 )
 
 // ConsumerService defines the service for consuming messages
@@ -42,7 +42,7 @@ type ConsumerService struct {
 
 // NewConsumerService returns an instance of ConsumerService
 func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ConsumerService {
-	recordsEntToEndLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	recordsEndToEndLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:      "records_consumed_latency",
 		Namespace: "strimzi_canary",
 		Help:      "Records end-to-end latency in milliseconds",
@@ -141,7 +141,7 @@ func (cgh *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSessio
 			"clientid":  cgh.consumerService.canaryConfig.ClientID,
 			"partition": strconv.Itoa(int(message.Partition)),
 		}
-		recordsEntToEndLatency.With(labels).Observe(float64(duration))
+		recordsEndToEndLatency.With(labels).Observe(float64(duration))
 		recordsConsumed.With(labels).Inc()
 	}
 	return nil
