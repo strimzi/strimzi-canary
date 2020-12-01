@@ -9,10 +9,30 @@ package services
 import (
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
+)
+
+var (
+	recordsProduced = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "records_produced_total",
+		Namespace: "strimzi_canary",
+		Help:      "The total number of records produced",
+	}, []string{"clientid", "partition"})
+
+	recordsProducedFailed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "records_produced_failed_total",
+		Namespace: "strimzi_canary",
+		Help:      "The total number of records failed to produce",
+	}, []string{"clientid", "partition"})
+
+	// it's defined when the service is created because buckets are configurable
+	recordsProducedLatency *prometheus.HistogramVec
 )
 
 // ProducerService defines the service for producing messages
@@ -26,6 +46,13 @@ type ProducerService struct {
 
 // NewProducerService returns an instance of ProductService
 func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ProducerService {
+	recordsProducedLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:      "records_produced_latency",
+		Namespace: "strimzi_canary",
+		Help:      "Records produced latency in milliseconds",
+		Buckets:   canaryConfig.ProducerLatencyBuckets,
+	}, []string{"clientid", "partition"})
+
 	producer, err := sarama.NewSyncProducerFromClient(client)
 	if err != nil {
 		log.Printf("Error creating the Sarama sync producer: %v", err)
@@ -46,15 +73,24 @@ func (ps *ProducerService) Send(numPartitions int) {
 	}
 	for i := 0; i < numPartitions; i++ {
 		// build the message JSON payload and send to the current partition
-		cmJSON := ps.newCanaryMessage().Json()
-		msg.Value = sarama.StringEncoder(cmJSON)
+		cm := ps.newCanaryMessage()
+		msg.Value = sarama.StringEncoder(cm.Json())
 		msg.Partition = int32(i)
 		log.Printf("Sending message: value=%s on partition=%d\n", msg.Value, msg.Partition)
 		partition, offset, err := ps.producer.SendMessage(msg)
+		timestamp := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
+		labels := prometheus.Labels{
+			"clientid":  ps.canaryConfig.ClientID,
+			"partition": strconv.Itoa(i),
+		}
+		recordsProduced.With(labels).Inc()
 		if err != nil {
 			log.Printf("Erros sending message: %v\n", err)
+			recordsProducedFailed.With(labels).Inc()
 		} else {
-			log.Printf("Message sent: partition=%d, offset=%d\n", partition, offset)
+			duration := timestamp - cm.Timestamp
+			log.Printf("Message sent: partition=%d, offset=%d, duration=%d ms\n", partition, offset, duration)
+			recordsProducedLatency.With(labels).Observe(float64(duration))
 		}
 	}
 }

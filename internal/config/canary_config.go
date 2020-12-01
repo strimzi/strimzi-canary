@@ -10,50 +10,59 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
 const (
 	// environment variables declaration
-	BootstrapServersEnvVar = "KAFKA_BOOTSTRAP_SERVERS"
-	TopicEnvVar            = "TOPIC"
-	TopicReconcileEnvVar   = "TOPIC_RECONCILE_MS"
-	DelayEnvVar            = "DELAY_MS"
-	ClientIDEnvVar         = "CLIENT_ID"
-	ConsumerGroupIDEnvVar  = "CONSUMER_GROUP_ID"
-	TLSEnabledEnvVar       = "TLS_ENABLED"
+	BootstrapServersEnvVar       = "KAFKA_BOOTSTRAP_SERVERS"
+	TopicEnvVar                  = "TOPIC"
+	TopicReconcileEnvVar         = "TOPIC_RECONCILE_MS"
+	DelayEnvVar                  = "DELAY_MS"
+	ClientIDEnvVar               = "CLIENT_ID"
+	ConsumerGroupIDEnvVar        = "CONSUMER_GROUP_ID"
+	TLSEnabledEnvVar             = "TLS_ENABLED"
+	ProducerLatencyBucketsEnvVar = "PRODUCER_LATENCY_BUCKETS"
+	EndToEndLatencyBucketsEnvVar = "ENDTOEND_LATENCY_BUCKETS"
 
 	// default values for environment variables
-	BootstrapServersDefault = "localhost:9092"
-	TopicDefault            = "strimzi-canary"
-	TopicReconcileDefault   = 30000
-	DelayDefault            = 1000
-	ClientIDDefault         = "strimzi-canary-client"
-	ConsumerGroupIDDefault  = "strimzi-canary-group"
-	TLSEnabledDefault       = false
+	BootstrapServersDefault       = "localhost:9092"
+	TopicDefault                  = "strimzi-canary"
+	TopicReconcileDefault         = 30000
+	DelayDefault                  = 1000
+	ClientIDDefault               = "strimzi-canary-client"
+	ConsumerGroupIDDefault        = "strimzi-canary-group"
+	TLSEnabledDefault             = false
+	ProducerLatencyBucketsDefault = "100,200,400,800,1600"
+	EndToEndLatencyBucketsDefault = "100,200,400,800,1600"
 )
 
 // CanaryConfig defines the canary tool configuration
 type CanaryConfig struct {
-	BootstrapServers string
-	Topic            string
-	TopicReconcile   time.Duration
-	Delay            time.Duration
-	ClientID         string
-	ConsumerGroupID  string
-	TLSEnabled       bool
+	BootstrapServers       string
+	Topic                  string
+	TopicReconcile         time.Duration
+	Delay                  time.Duration
+	ClientID               string
+	ConsumerGroupID        string
+	TLSEnabled             bool
+	ProducerLatencyBuckets []float64
+	EndToEndLatencyBuckets []float64
 }
 
 // NewCanaryConfig returns an configuration instance from environment variables
 func NewCanaryConfig() *CanaryConfig {
 	var config CanaryConfig = CanaryConfig{
-		BootstrapServers: lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),
-		Topic:            lookupStringEnv(TopicEnvVar, TopicDefault),
-		TopicReconcile:   time.Duration(lookupIntEnv(TopicReconcileEnvVar, TopicReconcileDefault)),
-		Delay:            time.Duration(lookupIntEnv(DelayEnvVar, DelayDefault)),
-		ClientID:         lookupStringEnv(ClientIDEnvVar, ClientIDDefault),
-		ConsumerGroupID:  lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
-		TLSEnabled:       lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
+		BootstrapServers:       lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),
+		Topic:                  lookupStringEnv(TopicEnvVar, TopicDefault),
+		TopicReconcile:         time.Duration(lookupIntEnv(TopicReconcileEnvVar, TopicReconcileDefault)),
+		Delay:                  time.Duration(lookupIntEnv(DelayEnvVar, DelayDefault)),
+		ClientID:               lookupStringEnv(ClientIDEnvVar, ClientIDDefault),
+		ConsumerGroupID:        lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
+		TLSEnabled:             lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
+		ProducerLatencyBuckets: latencyBuckets(lookupStringEnv(ProducerLatencyBucketsEnvVar, ProducerLatencyBucketsDefault)),
+		EndToEndLatencyBuckets: latencyBuckets(lookupStringEnv(EndToEndLatencyBucketsEnvVar, EndToEndLatencyBucketsDefault)),
 	}
 	return &config
 }
@@ -84,7 +93,22 @@ func lookupBoolEnv(envVar string, defaultValue bool) bool {
 	return boolVal
 }
 
+func latencyBuckets(bucketsConfig string) []float64 {
+	sBuckets := strings.Split(bucketsConfig, ",")
+	fBuckets := make([]float64, len(sBuckets))
+	for i := 0; i < len(sBuckets); i++ {
+		f, err := strconv.ParseFloat(sBuckets[i], 64)
+		if err != nil {
+			panic(err)
+		}
+		fBuckets[i] = f
+	}
+	return fBuckets
+}
+
 func (c CanaryConfig) String() string {
-	return fmt.Sprintf("{BootstrapServers:%s, Topic:%s, TopicReconcile:%d ms, Delay:%d ms, ClientID:%s, ConsumerGroupID:%s, TLSEnabled:%t}",
-		c.BootstrapServers, c.Topic, c.TopicReconcile, c.Delay, c.ClientID, c.ConsumerGroupID, c.TLSEnabled)
+	return fmt.Sprintf("{BootstrapServers:%s, Topic:%s, TopicReconcile:%d ms, Delay:%d ms, ClientID:%s, "+
+		"ConsumerGroupID:%s, TLSEnabled:%t, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v}",
+		c.BootstrapServers, c.Topic, c.TopicReconcile, c.Delay, c.ClientID,
+		c.ConsumerGroupID, c.TLSEnabled, c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets)
 }

@@ -10,9 +10,24 @@ import (
 	"context"
 	"log"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
+)
+
+var (
+	recordsConsumed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "records_consumed_total",
+		Namespace: "strimzi_canary",
+		Help:      "The total number of records consumed",
+	}, []string{"clientid", "partition"})
+
+	// it's defined when the service is created because buckets are configurable
+	recordsEndToEndLatency *prometheus.HistogramVec
 )
 
 // ConsumerService defines the service for consuming messages
@@ -27,6 +42,13 @@ type ConsumerService struct {
 
 // NewConsumerService returns an instance of ConsumerService
 func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ConsumerService {
+	recordsEndToEndLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:      "records_consumed_latency",
+		Namespace: "strimzi_canary",
+		Help:      "Records end-to-end latency in milliseconds",
+		Buckets:   canaryConfig.EndToEndLatencyBuckets,
+	}, []string{"clientid", "partition"})
+
 	consumerGroup, err := sarama.NewConsumerGroupFromClient(canaryConfig.ConsumerGroupID, client)
 	if err != nil {
 		log.Printf("Error creating the Sarama consumer: %v", err)
@@ -45,7 +67,9 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 // This function starts a goroutine calling in an endless loop the consume on the Sarama consumer group
 // It can be exited cancelling the corresponding context through the cancel function provided by the ConsumerService instance
 func (cs *ConsumerService) Consume() {
-	cgh := &consumerGroupHandler{}
+	cgh := &consumerGroupHandler{
+		consumerService: cs,
+	}
 	// creating new context with cancellation, for exiting Consume when metadata refresh is needed
 	ctx, cancel := context.WithCancel(context.Background())
 	cs.cancel = cancel
@@ -92,6 +116,7 @@ func (cs *ConsumerService) Close() {
 
 // consumerGroupHandler defines the handler for the consuming Sarama functions
 type consumerGroupHandler struct {
+	consumerService *ConsumerService
 }
 
 func (cgh *consumerGroupHandler) Setup(sarama.ConsumerGroupSession) error {
@@ -107,9 +132,17 @@ func (cgh *consumerGroupHandler) Cleanup(sarama.ConsumerGroupSession) error {
 func (cgh *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	log.Printf("Consumer group handler consumeclaim\n")
 	for message := range claim.Messages() {
+		timestamp := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
 		cm := NewCanaryMessage(message.Value)
-		log.Printf("Message received: value=%+v, partition=%d, offset=%d", cm, message.Partition, message.Offset)
+		duration := timestamp - cm.Timestamp
+		log.Printf("Message received: value=%+v, partition=%d, offset=%d, duration=%d ms", cm, message.Partition, message.Offset, duration)
 		session.MarkMessage(message, "")
+		labels := prometheus.Labels{
+			"clientid":  cgh.consumerService.canaryConfig.ClientID,
+			"partition": strconv.Itoa(int(message.Partition)),
+		}
+		recordsEndToEndLatency.With(labels).Observe(float64(duration))
+		recordsConsumed.With(labels).Inc()
 	}
 	return nil
 }
