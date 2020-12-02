@@ -54,6 +54,7 @@ func newClient(canaryConfig *config.CanaryConfig) sarama.Client {
 	// set manual partitioner in order to specify the destination partition on sending
 	config.Producer.Partitioner = sarama.NewManualPartitioner
 	config.Producer.Return.Successes = true
+	config.Producer.RequiredAcks = sarama.WaitForAll
 	// TODO: handling error
 	client, _ := sarama.NewClient([]string{canaryConfig.BootstrapServers}, config)
 	return client
