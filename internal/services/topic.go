@@ -133,14 +133,14 @@ func (ts *TopicService) createTopic(brokersNumber int) (map[int32][]int32, error
 }
 
 func (ts *TopicService) alterTopic(currentPartitions int, brokersNumber int) (map[int32][]int32, error) {
-	assignments, _ := ts.assignments(currentPartitions, brokersNumber)
+	assignmentsMap, _ := ts.assignments(currentPartitions, brokersNumber)
 
-	ass := make([][]int32, len(assignments))
-	for i := 0; i < len(ass); i++ {
-		ass[i] = make([]int32, len(assignments[int32(i)]))
-		copy(ass[i], assignments[int32(i)])
+	assignments := make([][]int32, len(assignmentsMap))
+	for i := 0; i < len(assignments); i++ {
+		assignments[i] = make([]int32, len(assignmentsMap[int32(i)]))
+		copy(assignments[i], assignmentsMap[int32(i)])
 	}
-	log.Printf("%v", ass)
+	log.Printf("%v", assignments)
 
 	var err error
 	// less partitions than brokers (scale up)
@@ -148,16 +148,16 @@ func (ts *TopicService) alterTopic(currentPartitions int, brokersNumber int) (ma
 		// when replication factor is less than 3 because brokers are not 3 yet (see replicationFactor := min(brokersNumber, 3)),
 		// it's not possible to create the new partitions directly with a replication factor higher than the current ones.
 		// So first alter the assignment of current partitions with new replicas (higher replication factor)
-		err = ts.alterAssignments(ass[:currentPartitions])
+		err = ts.alterAssignments(assignments[:currentPartitions])
 		if err == nil {
 			// passing the assigments just for the partitions that needs to be created
-			err = ts.admin.CreatePartitions(ts.canaryConfig.Topic, int32(brokersNumber), ass[currentPartitions:], false)
+			err = ts.admin.CreatePartitions(ts.canaryConfig.Topic, int32(brokersNumber), assignments[currentPartitions:], false)
 		}
 	} else {
 		// more or equals partitions than brokers, just need reassignment
-		err = ts.alterAssignments(ass[:currentPartitions])
+		err = ts.alterAssignments(assignments[:currentPartitions])
 	}
-	return assignments, err
+	return assignmentsMap, err
 }
 
 func (ts *TopicService) checkTopic(brokersNumber int, metadata *sarama.TopicMetadata) {
