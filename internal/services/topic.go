@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/strimzi/strimzi-canary/internal/config"
@@ -144,11 +145,17 @@ func (ts *TopicService) alterTopic(currentPartitions int, brokersNumber int) (ma
 	var err error
 	// less partitions than brokers (scale up)
 	if currentPartitions < brokersNumber {
-		// passing the assigments just for the partitions that needs to be created
-		err = ts.admin.CreatePartitions(ts.canaryConfig.Topic, int32(brokersNumber), ass[currentPartitions:], false)
+		// when replication factor is less than 3 because brokers are not 3 yet (see replicationFactor := min(brokersNumber, 3)),
+		// it's not possible to create the new partitions directly with a replication factor higher than the current ones.
+		// So first alter the assignment of current partitions with new replicas (higher replication factor)
+		err = ts.alterAssignments(ass[:currentPartitions])
+		if err == nil {
+			// passing the assigments just for the partitions that needs to be created
+			err = ts.admin.CreatePartitions(ts.canaryConfig.Topic, int32(brokersNumber), ass[currentPartitions:], false)
+		}
 	} else {
 		// more or equals partitions than brokers, just need reassignment
-		err = ts.admin.AlterPartitionReassignments(ts.canaryConfig.Topic, ass)
+		err = ts.alterAssignments(ass[:currentPartitions])
 	}
 	return assignments, err
 }
@@ -181,6 +188,40 @@ func (ts *TopicService) assignments(currentPartitions int, brokersNumber int) (m
 	}
 	log.Printf("assignments = %v, minISR = %d", assignments, int(minISR))
 	return assignments, int(minISR)
+}
+
+// Alter the replica assignment for the partitions
+//
+// After the request for the replica assignement, it run a loop for checking if the reassignment is still ongoing
+// It returns when the reassignment is done or there is an error
+func (ts *TopicService) alterAssignments(assignments [][]int32) error {
+	err := ts.admin.AlterPartitionReassignments(ts.canaryConfig.Topic, assignments)
+	if err != nil {
+		return err
+	}
+
+	partitions := make([]int32, 0, len(assignments))
+	for partitionID := range assignments {
+		partitions = append(partitions, int32(partitionID))
+	}
+	// loop for checking that there is no ongoing reassignments
+	for {
+		ongoing := false
+		reassignments, err := ts.admin.ListPartitionReassignments(ts.canaryConfig.Topic, partitions)
+		if err != nil {
+			return nil
+		}
+		// on each partition of the topic shouldn't be adding or removing replicas ongoing
+		for _, reassignmentStatus := range reassignments[ts.canaryConfig.Topic] {
+			log.Printf("List reassignments = %+v\n", reassignmentStatus)
+			ongoing = ongoing || (len(reassignmentStatus.AddingReplicas) != 0 || len(reassignmentStatus.RemovingReplicas) != 0)
+		}
+		if !ongoing {
+			break
+		}
+		time.Sleep(2000 * time.Millisecond)
+	}
+	return nil
 }
 
 func max(x, y int) int {
