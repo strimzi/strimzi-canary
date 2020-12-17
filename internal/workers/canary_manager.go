@@ -44,7 +44,16 @@ func (cm *CanaryManager) Start() {
 	cm.syncStop.Add(1)
 
 	// start first reconcile immediately
-	cm.reconcile()
+	if result, err := cm.topicService.Reconcile(); err == nil {
+		// consumer will subscribe to the topic so all partitions (even if we have less brokers)
+		cm.consumerService.Consume(len(result.Assignments))
+		// producer just needs to send from partition 0 to brokersNumber - 1
+		cm.producerService.Send(result.BrokersNumber)
+	} else {
+		log.Printf("Error starting manager: %v", err)
+		panic(err)
+	}
+
 	ticker := time.NewTicker(cm.canaryConfig.TopicReconcile * time.Millisecond)
 	go func() {
 		for {
@@ -60,8 +69,6 @@ func (cm *CanaryManager) Start() {
 			}
 		}
 	}()
-	// start consumer service to get messages
-	cm.consumerService.Consume()
 }
 
 // Stop stops the services and the reconcile timer
@@ -82,13 +89,13 @@ func (cm *CanaryManager) Stop() {
 func (cm *CanaryManager) reconcile() {
 	log.Printf("Canary manager reconcile ...")
 
-	// don't care about assignments, for now.
-	// producer just needs to send from partition 0 to brokersNumber - 1
 	if result, err := cm.topicService.Reconcile(); err == nil {
 		if result.RefreshMetadata {
-			cm.consumerService.Refresh()
+			// consumer will subscribe to the topic so all partitions (even if we have less brokers)
+			cm.consumerService.Refresh(len(result.Assignments))
 			cm.producerService.Refresh()
 		}
+		// producer just needs to send from partition 0 to brokersNumber - 1
 		cm.producerService.Send(result.BrokersNumber)
 	}
 
