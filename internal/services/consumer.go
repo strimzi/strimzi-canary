@@ -20,6 +20,13 @@ import (
 	"github.com/strimzi/strimzi-canary/internal/config"
 )
 
+const (
+	// timeout on waiting the consumer to join the consumer group successfully
+	waitConsumeTimeout = 30 * time.Second
+	// delay between retries for the consumer to join the consumer group
+	retryConsumeDelay = 5 * time.Second
+)
+
 var (
 	recordsConsumed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name:      "records_consumed_total",
@@ -29,6 +36,12 @@ var (
 
 	// it's defined when the service is created because buckets are configurable
 	recordsEndToEndLatency *prometheus.HistogramVec
+
+	timeoutJoinGroup = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "consumer_timeout_join_group_total",
+		Namespace: "strimzi_canary",
+		Help:      "The total number of consumer not joining the group within the timeout",
+	}, []string{"clientid"})
 )
 
 // ConsumerService defines the service for consuming messages
@@ -70,28 +83,60 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 // It can be exited cancelling the corresponding context through the cancel function provided by the ConsumerService instance
 // Before returning, it waits for the consumer to join the group for all the partitions provided with numPartitions parameter
 func (cs *ConsumerService) Consume(numPartitions int) {
-	cgh := &consumerGroupHandler{
-		consumerService: cs,
-	}
-	// creating new context with cancellation, for exiting Consume when metadata refresh is needed
-	ctx, cancel := context.WithCancel(context.Background())
-	cs.cancel = cancel
-	cs.syncConsume.Add(numPartitions)
-	go func() {
-		// the Consume has to be in a loop, because each time a metadata refresh happens, this method exits
-		// and needs to be called again for a new session and rejoining group
-		for {
-			// this method calls the methods handler on each stage: setup, consume and cleanup
-			cs.consumerGroup.Consume(ctx, []string{cs.canaryConfig.Topic}, cgh)
-
-			// check if context was cancelled, because of forcing a refresh metadata or exiting the consumer
-			if ctx.Err() != nil {
-				return
-			}
+	for {
+		cgh := &consumerGroupHandler{
+			consumerService: cs,
 		}
+		// creating new context with cancellation, for exiting Consume when metadata refresh is needed
+		ctx, cancel := context.WithCancel(context.Background())
+		cs.cancel = cancel
+		cs.syncConsume.Add(numPartitions)
+		go func() {
+			// the Consume has to be in a loop, because each time a metadata refresh happens, this method exits
+			// and needs to be called again for a new session and rejoining group
+			for {
+				// this method calls the methods handler on each stage: setup, consume and cleanup
+				cs.consumerGroup.Consume(ctx, []string{cs.canaryConfig.Topic}, cgh)
+
+				// check if context was cancelled, because of forcing a refresh metadata or exiting the consumer
+				if ctx.Err() != nil {
+					return
+				}
+			}
+		}()
+
+		// wait that the consumer is now subscribed to all partitions
+		if isTimeout := cs.wait(waitConsumeTimeout); isTimeout {
+			cs.cancel()
+			labels := prometheus.Labels{
+				"clientid": cs.canaryConfig.ClientID,
+			}
+			timeoutJoinGroup.With(labels).Inc()
+			log.Printf("Consumer joining group timed out!")
+			// TODO: improving with a backoff algorithm and max retries before giving up?
+			time.Sleep(retryConsumeDelay)
+		} else {
+			break
+		}
+	}
+}
+
+// Waits on the wait group about the consumer joining the group and starting
+//
+// It is possible to specify a timeout on waiting
+// Returns true if waiting timed out, otherwise false
+func (cs *ConsumerService) wait(timeout time.Duration) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		cs.syncConsume.Wait()
 	}()
-	// wait that the consumer is now subscribed for all partitions
-	cs.syncConsume.Wait()
+	select {
+	case <-c:
+		return false
+	case <-time.After(timeout):
+		return true
+	}
 }
 
 // Refresh does a refresh metadata
