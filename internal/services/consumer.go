@@ -23,7 +23,7 @@ import (
 const (
 	// timeout on waiting the consumer to join the consumer group successfully
 	waitConsumeTimeout = 30 * time.Second
-	// delay betweet retries about the consumer to join the consumer group
+	// delay between retries for the consumer to join the consumer group
 	retryConsumeDelay = 5 * time.Second
 )
 
