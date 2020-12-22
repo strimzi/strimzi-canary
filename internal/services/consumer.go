@@ -23,8 +23,8 @@ import (
 const (
 	// timeout on waiting the consumer to join the consumer group successfully
 	waitConsumeTimeout = 30 * time.Second
-	// delay between retries for the consumer to join the consumer group
-	retryConsumeDelay = 5 * time.Second
+	// maximum number of attempts for consumer to join the consumer group successfully
+	maxConsumeAttempts = 3
 )
 
 var (
@@ -83,6 +83,7 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 // It can be exited cancelling the corresponding context through the cancel function provided by the ConsumerService instance
 // Before returning, it waits for the consumer to join the group for all the partitions provided with numPartitions parameter
 func (cs *ConsumerService) Consume(numPartitions int) {
+	backoff := NewBackoff(maxConsumeAttempts, 5000, BaseDefault)
 	for {
 		cgh := &consumerGroupHandler{
 			consumerService: cs,
@@ -113,8 +114,12 @@ func (cs *ConsumerService) Consume(numPartitions int) {
 			}
 			timeoutJoinGroup.With(labels).Inc()
 			log.Printf("Consumer joining group timed out!")
-			// TODO: improving with a backoff algorithm and max retries before giving up?
-			time.Sleep(retryConsumeDelay)
+			delay, err := backoff.Delay()
+			if err != nil {
+				log.Printf("Error joining the consumer group: %v", err)
+				os.Exit(1)
+			}
+			time.Sleep(delay * time.Millisecond)
 		} else {
 			break
 		}
