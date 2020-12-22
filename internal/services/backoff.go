@@ -13,7 +13,6 @@ import (
 
 const (
 	ScaleDefault       = 200
-	BaseDefault        = 2
 	MaxAttemptsDefault = 6
 )
 
@@ -21,7 +20,6 @@ const (
 type Backoff struct {
 	maxAttempts int
 	scale       int64
-	base        int
 	attempt     int
 }
 
@@ -33,11 +31,10 @@ func (e *MaxAttemptsExceeded) Error() string {
 }
 
 // NewBackoff returns an instance of a Backoff struct
-func NewBackoff(maxAttempts int, scale int64, base int) *Backoff {
+func NewBackoff(maxAttempts int, scale int64) *Backoff {
 	backoff := Backoff{
 		maxAttempts: maxAttempts,
 		scale:       scale,
-		base:        base,
 		attempt:     0,
 	}
 	return &backoff
@@ -49,26 +46,7 @@ func (b *Backoff) Delay() (time.Duration, error) {
 	if b.attempt == b.maxAttempts {
 		return 0, &MaxAttemptsExceeded{}
 	}
+	delay := time.Duration(b.scale * 1 << b.attempt)
 	b.attempt++
-	return time.Duration(b.delay(b.attempt)), nil
-}
-
-func (b *Backoff) delay(n int) int64 {
-	if n == 0 {
-		return 0
-	}
-	pow := 1
-	/*
-		for {
-			n--
-			if n <= 1 {
-				break
-			}
-			pow *= b.base
-		}
-	*/
-	for ; n > 1; n-- {
-		pow *= b.base
-	}
-	return b.scale * int64(pow)
+	return delay, nil
 }

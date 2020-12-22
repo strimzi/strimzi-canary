@@ -12,7 +12,7 @@ import (
 )
 
 func TestBackoffDelayDefault(t *testing.T) {
-	b := NewBackoff(MaxAttemptsDefault, ScaleDefault, BaseDefault)
+	b := NewBackoff(MaxAttemptsDefault, ScaleDefault)
 	want := time.Duration(200)
 	if delay, _ := b.Delay(); delay != want {
 		t.Errorf("Delay: got = %v, want = %v", delay, want)
@@ -20,7 +20,7 @@ func TestBackoffDelayDefault(t *testing.T) {
 }
 
 func TestBackoffMoreDelayDefault(t *testing.T) {
-	b := NewBackoff(MaxAttemptsDefault, ScaleDefault, BaseDefault)
+	b := NewBackoff(MaxAttemptsDefault, ScaleDefault)
 	want := time.Duration(200)
 	if delay, _ := b.Delay(); delay != want {
 		t.Errorf("Delay: got = %v, want = %v", delay, want)
@@ -37,7 +37,7 @@ func TestBackoffMoreDelayDefault(t *testing.T) {
 
 func TestBackoffMaxAttemptsExceeded(t *testing.T) {
 	maxAttempts := 3
-	b := NewBackoff(maxAttempts, ScaleDefault, BaseDefault)
+	b := NewBackoff(maxAttempts, ScaleDefault)
 
 	for i := 0; i < maxAttempts; i++ {
 		if _, err := b.Delay(); err != nil {
@@ -51,7 +51,7 @@ func TestBackoffMaxAttemptsExceeded(t *testing.T) {
 }
 
 func TestBackoffMoreDelay(t *testing.T) {
-	b := NewBackoff(3, 5000, BaseDefault)
+	b := NewBackoff(3, 5000)
 	want := time.Duration(5000)
 	if delay, _ := b.Delay(); delay != want {
 		t.Errorf("Delay: got = %v, want = %v", delay, want)
