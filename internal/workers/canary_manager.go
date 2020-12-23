@@ -54,7 +54,7 @@ func (cm *CanaryManager) Start() {
 		panic(err)
 	}
 
-	ticker := time.NewTicker(cm.canaryConfig.TopicReconcile * time.Millisecond)
+	ticker := time.NewTicker(cm.canaryConfig.ReconcileInterval * time.Millisecond)
 	go func() {
 		for {
 			select {

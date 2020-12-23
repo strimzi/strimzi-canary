@@ -18,8 +18,7 @@ const (
 	// environment variables declaration
 	BootstrapServersEnvVar       = "KAFKA_BOOTSTRAP_SERVERS"
 	TopicEnvVar                  = "TOPIC"
-	TopicReconcileEnvVar         = "TOPIC_RECONCILE_MS"
-	DelayEnvVar                  = "DELAY_MS"
+	ReconcileIntervalEnvVar      = "RECONCILE_INTERVAL_MS"
 	ClientIDEnvVar               = "CLIENT_ID"
 	ConsumerGroupIDEnvVar        = "CONSUMER_GROUP_ID"
 	TLSEnabledEnvVar             = "TLS_ENABLED"
@@ -29,8 +28,7 @@ const (
 	// default values for environment variables
 	BootstrapServersDefault       = "localhost:9092"
 	TopicDefault                  = "strimzi-canary"
-	TopicReconcileDefault         = 30000
-	DelayDefault                  = 1000
+	ReconcileIntervalDefault      = 30000
 	ClientIDDefault               = "strimzi-canary-client"
 	ConsumerGroupIDDefault        = "strimzi-canary-group"
 	TLSEnabledDefault             = false
@@ -42,8 +40,7 @@ const (
 type CanaryConfig struct {
 	BootstrapServers       string
 	Topic                  string
-	TopicReconcile         time.Duration
-	Delay                  time.Duration
+	ReconcileInterval      time.Duration
 	ClientID               string
 	ConsumerGroupID        string
 	TLSEnabled             bool
@@ -56,8 +53,7 @@ func NewCanaryConfig() *CanaryConfig {
 	var config CanaryConfig = CanaryConfig{
 		BootstrapServers:       lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),
 		Topic:                  lookupStringEnv(TopicEnvVar, TopicDefault),
-		TopicReconcile:         time.Duration(lookupIntEnv(TopicReconcileEnvVar, TopicReconcileDefault)),
-		Delay:                  time.Duration(lookupIntEnv(DelayEnvVar, DelayDefault)),
+		ReconcileInterval:      time.Duration(lookupIntEnv(ReconcileIntervalEnvVar, ReconcileIntervalDefault)),
 		ClientID:               lookupStringEnv(ClientIDEnvVar, ClientIDDefault),
 		ConsumerGroupID:        lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
 		TLSEnabled:             lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
@@ -107,8 +103,8 @@ func latencyBuckets(bucketsConfig string) []float64 {
 }
 
 func (c CanaryConfig) String() string {
-	return fmt.Sprintf("{BootstrapServers:%s, Topic:%s, TopicReconcile:%d ms, Delay:%d ms, ClientID:%s, "+
+	return fmt.Sprintf("{BootstrapServers:%s, Topic:%s, ReconcileInterval:%d ms, ClientID:%s, "+
 		"ConsumerGroupID:%s, TLSEnabled:%t, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v}",
-		c.BootstrapServers, c.Topic, c.TopicReconcile, c.Delay, c.ClientID,
-		c.ConsumerGroupID, c.TLSEnabled, c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets)
+		c.BootstrapServers, c.Topic, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
+		c.TLSEnabled, c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets)
 }
