@@ -3,7 +3,7 @@
 **/.settings/*
 **/.prefs
 **/.classpath
-/target/
+**/target/
 
 # IntelliJ IDEA specific
 .idea/
