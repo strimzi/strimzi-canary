@@ -31,6 +31,7 @@ type TopicService struct {
 	canaryConfig *config.CanaryConfig
 	client       sarama.Client
 	admin        sarama.ClusterAdmin
+	initialized  bool
 }
 
 // NewTopicService returns an instance of TopicService
@@ -70,7 +71,13 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 		log.Printf("Error describing cluster: %v", err)
 		return result, err
 	}
-	result.BrokersNumber = len(brokers)
+	// the brokers number that reflects the expected partitions for sending messages can be dynamic or fixed/expected
+	// depending if the "dynamic" reassignment is enabled or not
+	if ts.isDynamicReassignmentEnabled() {
+		result.BrokersNumber = len(brokers)
+	} else {
+		result.BrokersNumber = ts.canaryConfig.ExpectedClusterSize
+	}
 
 	metadata, err := ts.admin.DescribeTopics([]string{ts.canaryConfig.Topic})
 	if err != nil {
@@ -84,8 +91,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 		// canary topic doesn't exist, going to create it
 		log.Printf("The canary topic %s doesn't exist\n", topicMetadata.Name)
 		// topic is created if "dynamic" reassignment is enabled or the expected brokers are provided by the describe cluster
-		if ts.canaryConfig.ExpectedClusterSize == config.ExpectedClusterSizeDefault ||
-			ts.canaryConfig.ExpectedClusterSize == len(brokers) {
+		if ts.isDynamicReassignmentEnabled() || ts.canaryConfig.ExpectedClusterSize == len(brokers) {
 
 			if result.Assignments, err = ts.createTopic(len(brokers)); err != nil {
 				log.Printf("Error creating topic %s: %v", topicMetadata.Name, err)
@@ -93,6 +99,8 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 			}
 			log.Printf("The canary topic %s was created\n", topicMetadata.Name)
 		} else {
+			log.Printf("The canary topic wasn't created. Expected brokers %d, Actual brokers %d",
+				ts.canaryConfig.ExpectedClusterSize, len(brokers))
 			// not creating the topic and returning error to avoid starting producer/consumer
 			return result, topicMetadata.Err
 		}
@@ -102,10 +110,10 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 		log.Printf("The canary topic %s already exists\n", topicMetadata.Name)
 
 		// topic partitions reassignment happens if "dynamic" reassignment is enabled
-		// or partitions are not equals to the expected brokers
-		if ts.canaryConfig.ExpectedClusterSize == config.ExpectedClusterSizeDefault ||
-			len(topicMetadata.Partitions) != ts.canaryConfig.ExpectedClusterSize {
+		// or the topic service is just starting up
+		if ts.isDynamicReassignmentEnabled() || !ts.initialized {
 
+			log.Printf("Going to alter topic and reassigning partitions if needed")
 			result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
 			if result.Assignments, err = ts.alterTopic(len(topicMetadata.Partitions), len(brokers)); err != nil {
 				log.Printf("Error altering topic %s: %v", topicMetadata.Name, err)
@@ -116,6 +124,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 		}
 
 	}
+	ts.initialized = true
 	return result, err
 }
 
@@ -239,6 +248,11 @@ func (ts *TopicService) alterAssignments(assignments [][]int32) error {
 		time.Sleep(2000 * time.Millisecond)
 	}
 	return nil
+}
+
+// If the "dynamic" topic partitions reassignment is enabled
+func (ts *TopicService) isDynamicReassignmentEnabled() bool {
+	return ts.canaryConfig.ExpectedClusterSize == config.ExpectedClusterSizeDefault
 }
 
 func max(x, y int) int {
