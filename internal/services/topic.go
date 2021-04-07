@@ -80,24 +80,41 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 	topicMetadata := metadata[0]
 
 	if topicMetadata.Err == sarama.ErrUnknownTopicOrPartition {
+
 		// canary topic doesn't exist, going to create it
 		log.Printf("The canary topic %s doesn't exist\n", topicMetadata.Name)
-		if result.Assignments, err = ts.createTopic(len(brokers)); err != nil {
-			log.Printf("Error creating topic %s: %v", topicMetadata.Name, err)
-			return result, err
+		// topic is created if "dynamic" reassignment is enabled or the expected brokers are provided by the describe cluster
+		if ts.canaryConfig.ExpectedClusterSize == config.ExpectedClusterSizeDefault ||
+			ts.canaryConfig.ExpectedClusterSize == len(brokers) {
+
+			if result.Assignments, err = ts.createTopic(len(brokers)); err != nil {
+				log.Printf("Error creating topic %s: %v", topicMetadata.Name, err)
+				return result, err
+			}
+			log.Printf("The canary topic %s was created\n", topicMetadata.Name)
+		} else {
+			// not creating the topic and returning error to avoid starting producer/consumer
+			return result, topicMetadata.Err
 		}
-		log.Printf("The canary topic %s was created\n", topicMetadata.Name)
+
 	} else {
 		// canary topic already exists, check replicas assignments
 		log.Printf("The canary topic %s already exists\n", topicMetadata.Name)
 
-		result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
-		if result.Assignments, err = ts.alterTopic(len(topicMetadata.Partitions), len(brokers)); err != nil {
-			log.Printf("Error altering topic %s: %v", topicMetadata.Name, err)
-			return result, err
+		// topic partitions reassignment happens if "dynamic" reassignment is enabled
+		// or partitions are not equals to the expected brokers
+		if ts.canaryConfig.ExpectedClusterSize == config.ExpectedClusterSizeDefault ||
+			len(topicMetadata.Partitions) != ts.canaryConfig.ExpectedClusterSize {
+
+			result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
+			if result.Assignments, err = ts.alterTopic(len(topicMetadata.Partitions), len(brokers)); err != nil {
+				log.Printf("Error altering topic %s: %v", topicMetadata.Name, err)
+				return result, err
+			}
+			ts.checkTopic(len(brokers), topicMetadata)
+			// TODO force a leader election. The feature is missing in Sarama library right now.
 		}
-		ts.checkTopic(len(brokers), topicMetadata)
-		// TODO force a leader election. The feature is missing in Sarama library right now.
+
 	}
 	return result, err
 }
