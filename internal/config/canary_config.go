@@ -24,6 +24,7 @@ const (
 	TLSEnabledEnvVar             = "TLS_ENABLED"
 	ProducerLatencyBucketsEnvVar = "PRODUCER_LATENCY_BUCKETS"
 	EndToEndLatencyBucketsEnvVar = "ENDTOEND_LATENCY_BUCKETS"
+	ExpectedClusterSizeEnvVar    = "EXPECTED_CLUSTER_SIZE"
 
 	// default values for environment variables
 	BootstrapServersDefault       = "localhost:9092"
@@ -34,6 +35,7 @@ const (
 	TLSEnabledDefault             = false
 	ProducerLatencyBucketsDefault = "100,200,400,800,1600"
 	EndToEndLatencyBucketsDefault = "100,200,400,800,1600"
+	ExpectedClusterSizeDefault    = -1 // "dynamic" reassignment is enabled
 )
 
 // CanaryConfig defines the canary tool configuration
@@ -46,6 +48,7 @@ type CanaryConfig struct {
 	TLSEnabled             bool
 	ProducerLatencyBuckets []float64
 	EndToEndLatencyBuckets []float64
+	ExpectedClusterSize    int
 }
 
 // NewCanaryConfig returns an configuration instance from environment variables
@@ -59,6 +62,7 @@ func NewCanaryConfig() *CanaryConfig {
 		TLSEnabled:             lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
 		ProducerLatencyBuckets: latencyBuckets(lookupStringEnv(ProducerLatencyBucketsEnvVar, ProducerLatencyBucketsDefault)),
 		EndToEndLatencyBuckets: latencyBuckets(lookupStringEnv(EndToEndLatencyBucketsEnvVar, EndToEndLatencyBucketsDefault)),
+		ExpectedClusterSize:    lookupIntEnv(ExpectedClusterSizeEnvVar, ExpectedClusterSizeDefault),
 	}
 	return &config
 }
@@ -104,7 +108,7 @@ func latencyBuckets(bucketsConfig string) []float64 {
 
 func (c CanaryConfig) String() string {
 	return fmt.Sprintf("{BootstrapServers:%s, Topic:%s, ReconcileInterval:%d ms, ClientID:%s, "+
-		"ConsumerGroupID:%s, TLSEnabled:%t, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v}",
+		"ConsumerGroupID:%s, TLSEnabled:%t, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d}",
 		c.BootstrapServers, c.Topic, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
-		c.TLSEnabled, c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets)
+		c.TLSEnabled, c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize)
 }
