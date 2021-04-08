@@ -28,7 +28,7 @@ const (
 
 	// default values for environment variables
 	BootstrapServersDefault       = "localhost:9092"
-	TopicDefault                  = "strimzi-canary"
+	TopicDefault                  = "__strimzi_canary"
 	ReconcileIntervalDefault      = 30000
 	ClientIDDefault               = "strimzi-canary-client"
 	ConsumerGroupIDDefault        = "strimzi-canary-group"
