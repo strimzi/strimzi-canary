@@ -108,6 +108,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 	} else {
 		// canary topic already exists, check replicas assignments
 		log.Printf("The canary topic %s already exists\n", topicMetadata.Name)
+		logTopicMetadata(topicMetadata)
 
 		// topic partitions reassignment happens if "dynamic" reassignment is enabled
 		// or the topic service is just starting up
@@ -267,4 +268,11 @@ func min(x, y int) int {
 		return y
 	}
 	return x
+}
+
+func logTopicMetadata(topicMetadata *sarama.TopicMetadata) {
+	log.Printf("Metadata for %s topic\n", topicMetadata.Name)
+	for _, p := range topicMetadata.Partitions {
+		log.Printf("\t{ID:%d Leader:%d Replicas:%v Isr:%v OfflineReplicas:%v}\n", p.ID, p.Leader, p.Replicas, p.Isr, p.OfflineReplicas)
+	}
 }
