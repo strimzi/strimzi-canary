@@ -8,6 +8,7 @@ package services
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -57,9 +58,16 @@ func (b *Backoff) Delay() (time.Duration, error) {
 	if b.attempt == b.maxAttempts {
 		return 0, &MaxAttemptsExceeded{}
 	}
-	delay := time.Duration(b.scale * 1 << b.attempt)
-	if delay > b.max {
+	var delay time.Duration
+	// check that it doesn't overflow on int64
+	delayFloat := float64(b.scale) * math.Pow(2, float64(b.attempt))
+	if delayFloat > math.MaxInt64 {
 		delay = b.max
+	} else {
+		delay = time.Duration(delayFloat)
+		if delay > b.max {
+			delay = b.max
+		}
 	}
 	b.attempt++
 	return delay, nil
