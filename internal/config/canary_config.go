@@ -16,57 +16,61 @@ import (
 
 const (
 	// environment variables declaration
-	BootstrapServersEnvVar       = "KAFKA_BOOTSTRAP_SERVERS"
-	BootstrapMaxAttemptsEnvVar   = "KAFKA_BOOTSTRAP_MAX_ATTEMPTS"
-	TopicEnvVar                  = "TOPIC"
-	ReconcileIntervalEnvVar      = "RECONCILE_INTERVAL_MS"
-	ClientIDEnvVar               = "CLIENT_ID"
-	ConsumerGroupIDEnvVar        = "CONSUMER_GROUP_ID"
-	TLSEnabledEnvVar             = "TLS_ENABLED"
-	ProducerLatencyBucketsEnvVar = "PRODUCER_LATENCY_BUCKETS"
-	EndToEndLatencyBucketsEnvVar = "ENDTOEND_LATENCY_BUCKETS"
-	ExpectedClusterSizeEnvVar    = "EXPECTED_CLUSTER_SIZE"
+	BootstrapServersEnvVar            = "KAFKA_BOOTSTRAP_SERVERS"
+	BootstrapBackoffMaxAttemptsEnvVar = "KAFKA_BOOTSTRAP_BACKOFF_MAX_ATTEMPTS"
+	BootstrapBackoffScaleEnvVar       = "KAFKA_BOOTSTRAP_BACKOFF_SCALE"
+	TopicEnvVar                       = "TOPIC"
+	ReconcileIntervalEnvVar           = "RECONCILE_INTERVAL_MS"
+	ClientIDEnvVar                    = "CLIENT_ID"
+	ConsumerGroupIDEnvVar             = "CONSUMER_GROUP_ID"
+	TLSEnabledEnvVar                  = "TLS_ENABLED"
+	ProducerLatencyBucketsEnvVar      = "PRODUCER_LATENCY_BUCKETS"
+	EndToEndLatencyBucketsEnvVar      = "ENDTOEND_LATENCY_BUCKETS"
+	ExpectedClusterSizeEnvVar         = "EXPECTED_CLUSTER_SIZE"
 
 	// default values for environment variables
-	BootstrapServersDefault       = "localhost:9092"
-	BootstrapMaxAttemptsDefault   = 10
-	TopicDefault                  = "__strimzi_canary"
-	ReconcileIntervalDefault      = 30000
-	ClientIDDefault               = "strimzi-canary-client"
-	ConsumerGroupIDDefault        = "strimzi-canary-group"
-	TLSEnabledDefault             = false
-	ProducerLatencyBucketsDefault = "100,200,400,800,1600"
-	EndToEndLatencyBucketsDefault = "100,200,400,800,1600"
-	ExpectedClusterSizeDefault    = -1 // "dynamic" reassignment is enabled
+	BootstrapServersDefault            = "localhost:9092"
+	BootstrapBackoffMaxAttemptsDefault = 10
+	BootstrapBackoffScaleDefault       = 5000
+	TopicDefault                       = "__strimzi_canary"
+	ReconcileIntervalDefault           = 30000
+	ClientIDDefault                    = "strimzi-canary-client"
+	ConsumerGroupIDDefault             = "strimzi-canary-group"
+	TLSEnabledDefault                  = false
+	ProducerLatencyBucketsDefault      = "100,200,400,800,1600"
+	EndToEndLatencyBucketsDefault      = "100,200,400,800,1600"
+	ExpectedClusterSizeDefault         = -1 // "dynamic" reassignment is enabled
 )
 
 // CanaryConfig defines the canary tool configuration
 type CanaryConfig struct {
-	BootstrapServers       string
-	BootstrapMaxAttempts   int
-	Topic                  string
-	ReconcileInterval      time.Duration
-	ClientID               string
-	ConsumerGroupID        string
-	TLSEnabled             bool
-	ProducerLatencyBuckets []float64
-	EndToEndLatencyBuckets []float64
-	ExpectedClusterSize    int
+	BootstrapServers            string
+	BootstrapBackoffMaxAttempts int
+	BootstrapBackoffScale       int
+	Topic                       string
+	ReconcileInterval           time.Duration
+	ClientID                    string
+	ConsumerGroupID             string
+	TLSEnabled                  bool
+	ProducerLatencyBuckets      []float64
+	EndToEndLatencyBuckets      []float64
+	ExpectedClusterSize         int
 }
 
 // NewCanaryConfig returns an configuration instance from environment variables
 func NewCanaryConfig() *CanaryConfig {
 	var config CanaryConfig = CanaryConfig{
-		BootstrapServers:       lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),
-		BootstrapMaxAttempts:   lookupIntEnv(BootstrapMaxAttemptsEnvVar, BootstrapMaxAttemptsDefault),
-		Topic:                  lookupStringEnv(TopicEnvVar, TopicDefault),
-		ReconcileInterval:      time.Duration(lookupIntEnv(ReconcileIntervalEnvVar, ReconcileIntervalDefault)),
-		ClientID:               lookupStringEnv(ClientIDEnvVar, ClientIDDefault),
-		ConsumerGroupID:        lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
-		TLSEnabled:             lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
-		ProducerLatencyBuckets: latencyBuckets(lookupStringEnv(ProducerLatencyBucketsEnvVar, ProducerLatencyBucketsDefault)),
-		EndToEndLatencyBuckets: latencyBuckets(lookupStringEnv(EndToEndLatencyBucketsEnvVar, EndToEndLatencyBucketsDefault)),
-		ExpectedClusterSize:    lookupIntEnv(ExpectedClusterSizeEnvVar, ExpectedClusterSizeDefault),
+		BootstrapServers:            lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),
+		BootstrapBackoffMaxAttempts: lookupIntEnv(BootstrapBackoffMaxAttemptsEnvVar, BootstrapBackoffMaxAttemptsDefault),
+		BootstrapBackoffScale:       lookupIntEnv(BootstrapBackoffScaleEnvVar, BootstrapBackoffScaleDefault),
+		Topic:                       lookupStringEnv(TopicEnvVar, TopicDefault),
+		ReconcileInterval:           time.Duration(lookupIntEnv(ReconcileIntervalEnvVar, ReconcileIntervalDefault)),
+		ClientID:                    lookupStringEnv(ClientIDEnvVar, ClientIDDefault),
+		ConsumerGroupID:             lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
+		TLSEnabled:                  lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
+		ProducerLatencyBuckets:      latencyBuckets(lookupStringEnv(ProducerLatencyBucketsEnvVar, ProducerLatencyBucketsDefault)),
+		EndToEndLatencyBuckets:      latencyBuckets(lookupStringEnv(EndToEndLatencyBucketsEnvVar, EndToEndLatencyBucketsDefault)),
+		ExpectedClusterSize:         lookupIntEnv(ExpectedClusterSizeEnvVar, ExpectedClusterSizeDefault),
 	}
 	return &config
 }
@@ -111,8 +115,8 @@ func latencyBuckets(bucketsConfig string) []float64 {
 }
 
 func (c CanaryConfig) String() string {
-	return fmt.Sprintf("{BootstrapServers:%s, BootstrapMaxAttempts:%d, Topic:%s, ReconcileInterval:%d ms, ClientID:%s, "+
-		"ConsumerGroupID:%s, TLSEnabled:%t, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d}",
-		c.BootstrapServers, c.BootstrapMaxAttempts, c.Topic, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
+	return fmt.Sprintf("{BootstrapServers:%s, BootstrapBackoffMaxAttempts:%d, BootstrapBackoffScale:%d, Topic:%s, ReconcileInterval:%d ms, "+
+		"ClientID:%s, ConsumerGroupID:%s, TLSEnabled:%t, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d}",
+		c.BootstrapServers, c.BootstrapBackoffMaxAttempts, c.BootstrapBackoffScale, c.Topic, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
 		c.TLSEnabled, c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize)
 }
