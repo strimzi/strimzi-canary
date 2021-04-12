@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/strimzi/strimzi-canary/internal/config"
@@ -55,7 +56,19 @@ func newClient(canaryConfig *config.CanaryConfig) sarama.Client {
 	config.Producer.Partitioner = sarama.NewManualPartitioner
 	config.Producer.Return.Successes = true
 	config.Producer.RequiredAcks = sarama.WaitForAll
-	// TODO: handling error
-	client, _ := sarama.NewClient([]string{canaryConfig.BootstrapServers}, config)
-	return client
+
+	backoff := services.NewBackoff(canaryConfig.BootstrapBackoffMaxAttempts, canaryConfig.BootstrapBackoffScale*time.Millisecond, services.MaxDefault)
+	for {
+		client, clientErr := sarama.NewClient([]string{canaryConfig.BootstrapServers}, config)
+		if clientErr == nil {
+			return client
+		}
+		delay, backoffErr := backoff.Delay()
+		if backoffErr != nil {
+			log.Printf("Error connecting to the Kafka cluster after %d retries: %v", canaryConfig.BootstrapBackoffMaxAttempts, backoffErr)
+			os.Exit(1)
+		}
+		log.Printf("Error creating new Sarama client, retrying in %d ms: %v", delay.Milliseconds(), clientErr)
+		time.Sleep(delay)
+	}
 }
