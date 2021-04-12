@@ -51,8 +51,8 @@ func NewBackoff(maxAttempts int, scale time.Duration, max time.Duration) *Backof
 	return &backoff
 }
 
-// Delay computes a delay in milliseconds based on the current Backoff instance configuration
-// Returns the delay in milliseconds and an error if the max attempts is reached, otherwise it's nil
+// Delay computes a delay in terms of Duration (nanoseconds) based on the current Backoff instance configuration
+// Returns the delay in terms of Duration (nanoseconds) and an error if the max attempts is reached, otherwise it's nil
 func (b *Backoff) Delay() (time.Duration, error) {
 	if b.attempt == b.maxAttempts {
 		return 0, &MaxAttemptsExceeded{}
