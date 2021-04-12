@@ -8,7 +8,6 @@ package services
 
 import (
 	"fmt"
-	"math"
 	"time"
 )
 
@@ -29,8 +28,15 @@ type Backoff struct {
 // MaxAttemptsExceeded defines the error for the max attempts exceeded
 type MaxAttemptsExceeded struct{}
 
+// Overflow on computed delay
+type BackoffDelayOverflow struct{}
+
 func (e *MaxAttemptsExceeded) Error() string {
 	return fmt.Sprintf("Maximum number of attempts exceeded")
+}
+
+func (e *BackoffDelayOverflow) Error() string {
+	return fmt.Sprintf("Overflow on the computed backoff delay")
 }
 
 // NewBackoff returns an instance of a Backoff struct
@@ -58,16 +64,12 @@ func (b *Backoff) Delay() (time.Duration, error) {
 	if b.attempt == b.maxAttempts {
 		return 0, &MaxAttemptsExceeded{}
 	}
-	var delay time.Duration
-	// check that it doesn't overflow on int64
-	delayFloat := float64(b.scale) * math.Pow(2, float64(b.attempt))
-	if delayFloat > math.MaxInt64 {
+	delay := time.Duration(b.scale * 1 << b.attempt)
+	if delay < 0 {
+		return 0, &BackoffDelayOverflow{}
+	}
+	if delay > b.max {
 		delay = b.max
-	} else {
-		delay = time.Duration(delayFloat)
-		if delay > b.max {
-			delay = b.max
-		}
 	}
 	b.attempt++
 	return delay, nil
