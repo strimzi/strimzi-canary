@@ -83,7 +83,7 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 // It can be exited cancelling the corresponding context through the cancel function provided by the ConsumerService instance
 // Before returning, it waits for the consumer to join the group for all the partitions provided with numPartitions parameter
 func (cs *ConsumerService) Consume(numPartitions int) {
-	backoff := NewBackoff(maxConsumeAttempts, 5000)
+	backoff := NewBackoff(maxConsumeAttempts, 5000*time.Millisecond, MaxDefault)
 	for {
 		cgh := &consumerGroupHandler{
 			consumerService: cs,
@@ -119,7 +119,7 @@ func (cs *ConsumerService) Consume(numPartitions int) {
 				log.Printf("Error joining the consumer group: %v", err)
 				os.Exit(1)
 			}
-			time.Sleep(delay * time.Millisecond)
+			time.Sleep(delay)
 		} else {
 			break
 		}
