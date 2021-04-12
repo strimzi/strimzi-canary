@@ -17,6 +17,7 @@ import (
 const (
 	// environment variables declaration
 	BootstrapServersEnvVar       = "KAFKA_BOOTSTRAP_SERVERS"
+	BootstrapMaxAttemptsEnvVar   = "KAFKA_BOOTSTRAP_MAX_ATTEMPTS"
 	TopicEnvVar                  = "TOPIC"
 	ReconcileIntervalEnvVar      = "RECONCILE_INTERVAL_MS"
 	ClientIDEnvVar               = "CLIENT_ID"
@@ -28,6 +29,7 @@ const (
 
 	// default values for environment variables
 	BootstrapServersDefault       = "localhost:9092"
+	BootstrapMaxAttemptsDefault   = 10
 	TopicDefault                  = "__strimzi_canary"
 	ReconcileIntervalDefault      = 30000
 	ClientIDDefault               = "strimzi-canary-client"
@@ -41,6 +43,7 @@ const (
 // CanaryConfig defines the canary tool configuration
 type CanaryConfig struct {
 	BootstrapServers       string
+	BootstrapMaxAttempts   int
 	Topic                  string
 	ReconcileInterval      time.Duration
 	ClientID               string
@@ -55,6 +58,7 @@ type CanaryConfig struct {
 func NewCanaryConfig() *CanaryConfig {
 	var config CanaryConfig = CanaryConfig{
 		BootstrapServers:       lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),
+		BootstrapMaxAttempts:   lookupIntEnv(BootstrapMaxAttemptsEnvVar, BootstrapMaxAttemptsDefault),
 		Topic:                  lookupStringEnv(TopicEnvVar, TopicDefault),
 		ReconcileInterval:      time.Duration(lookupIntEnv(ReconcileIntervalEnvVar, ReconcileIntervalDefault)),
 		ClientID:               lookupStringEnv(ClientIDEnvVar, ClientIDDefault),
@@ -107,8 +111,8 @@ func latencyBuckets(bucketsConfig string) []float64 {
 }
 
 func (c CanaryConfig) String() string {
-	return fmt.Sprintf("{BootstrapServers:%s, Topic:%s, ReconcileInterval:%d ms, ClientID:%s, "+
+	return fmt.Sprintf("{BootstrapServers:%s, BootstrapMaxAttempts:%d, Topic:%s, ReconcileInterval:%d ms, ClientID:%s, "+
 		"ConsumerGroupID:%s, TLSEnabled:%t, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d}",
-		c.BootstrapServers, c.Topic, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
+		c.BootstrapServers, c.BootstrapMaxAttempts, c.Topic, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
 		c.TLSEnabled, c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize)
 }
