@@ -12,14 +12,16 @@ import (
 )
 
 const (
-	ScaleDefault       = 200
+	ScaleDefault       = 200 * time.Millisecond
+	MaxDefault         = 5 * time.Minute
 	MaxAttemptsDefault = 6
 )
 
 // Backoff encapsulates computing delays for an exponential back-off, when an operation has to be retried
 type Backoff struct {
 	maxAttempts int
-	scale       int64
+	scale       time.Duration
+	max         time.Duration
 	attempt     int
 }
 
@@ -31,10 +33,19 @@ func (e *MaxAttemptsExceeded) Error() string {
 }
 
 // NewBackoff returns an instance of a Backoff struct
-func NewBackoff(maxAttempts int, scale int64) *Backoff {
+func NewBackoff(maxAttempts int, scale time.Duration, max time.Duration) *Backoff {
+	actualScale := scale
+	if actualScale <= 0 {
+		actualScale = ScaleDefault
+	}
+	actualMax := max
+	if actualMax <= 0 {
+		actualMax = MaxDefault
+	}
 	backoff := Backoff{
 		maxAttempts: maxAttempts,
-		scale:       scale,
+		scale:       actualScale,
+		max:         actualMax,
 		attempt:     0,
 	}
 	return &backoff
@@ -47,6 +58,9 @@ func (b *Backoff) Delay() (time.Duration, error) {
 		return 0, &MaxAttemptsExceeded{}
 	}
 	delay := time.Duration(b.scale * 1 << b.attempt)
+	if delay > b.max {
+		delay = b.max
+	}
 	b.attempt++
 	return delay, nil
 }
