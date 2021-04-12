@@ -46,7 +46,7 @@ const (
 type CanaryConfig struct {
 	BootstrapServers            string
 	BootstrapBackoffMaxAttempts int
-	BootstrapBackoffScale       int
+	BootstrapBackoffScale       time.Duration
 	Topic                       string
 	ReconcileInterval           time.Duration
 	ClientID                    string
@@ -62,7 +62,7 @@ func NewCanaryConfig() *CanaryConfig {
 	var config CanaryConfig = CanaryConfig{
 		BootstrapServers:            lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),
 		BootstrapBackoffMaxAttempts: lookupIntEnv(BootstrapBackoffMaxAttemptsEnvVar, BootstrapBackoffMaxAttemptsDefault),
-		BootstrapBackoffScale:       lookupIntEnv(BootstrapBackoffScaleEnvVar, BootstrapBackoffScaleDefault),
+		BootstrapBackoffScale:       time.Duration(lookupIntEnv(BootstrapBackoffScaleEnvVar, BootstrapBackoffScaleDefault)),
 		Topic:                       lookupStringEnv(TopicEnvVar, TopicDefault),
 		ReconcileInterval:           time.Duration(lookupIntEnv(ReconcileIntervalEnvVar, ReconcileIntervalDefault)),
 		ClientID:                    lookupStringEnv(ClientIDEnvVar, ClientIDDefault),

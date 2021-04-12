@@ -57,7 +57,7 @@ func newClient(canaryConfig *config.CanaryConfig) sarama.Client {
 	config.Producer.Return.Successes = true
 	config.Producer.RequiredAcks = sarama.WaitForAll
 
-	backoff := services.NewBackoff(canaryConfig.BootstrapBackoffMaxAttempts, int64(canaryConfig.BootstrapBackoffScale))
+	backoff := services.NewBackoff(canaryConfig.BootstrapBackoffMaxAttempts, canaryConfig.BootstrapBackoffScale*time.Millisecond, services.MaxDefault)
 	for {
 		client, clientErr := sarama.NewClient([]string{canaryConfig.BootstrapServers}, config)
 		if clientErr == nil {
@@ -68,7 +68,7 @@ func newClient(canaryConfig *config.CanaryConfig) sarama.Client {
 			log.Printf("Error connecting to the Kafka cluster after %d retries: %v", canaryConfig.BootstrapBackoffMaxAttempts, backoffErr)
 			os.Exit(1)
 		}
-		log.Printf("Error creating new Sarama client, retrying in %d ms: %v", delay, clientErr)
-		time.Sleep(delay * time.Millisecond)
+		log.Printf("Error creating new Sarama client, retrying in %d ms: %v", delay.Milliseconds(), clientErr)
+		time.Sleep(delay)
 	}
 }
