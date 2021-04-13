@@ -7,6 +7,7 @@
 package services
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -32,6 +33,13 @@ type TopicService struct {
 	client       sarama.Client
 	admin        sarama.ClusterAdmin
 	initialized  bool
+}
+
+// ErrExpectedClusterSize defines the error raised when the expected cluster size is not met
+type ErrExpectedClusterSize struct{}
+
+func (e *ErrExpectedClusterSize) Error() string {
+	return fmt.Sprintf("Current cluster size doesn't met the expected one")
 }
 
 // NewTopicService returns an instance of TopicService
@@ -102,7 +110,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 			log.Printf("The canary topic wasn't created. Expected brokers %d, Actual brokers %d",
 				ts.canaryConfig.ExpectedClusterSize, len(brokers))
 			// not creating the topic and returning error to avoid starting producer/consumer
-			return result, topicMetadata.Err
+			return result, &ErrExpectedClusterSize{}
 		}
 
 	} else {
