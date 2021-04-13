@@ -8,6 +8,7 @@ package workers
 
 import (
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -43,15 +44,29 @@ func (cm *CanaryManager) Start() {
 	cm.stop = make(chan struct{})
 	cm.syncStop.Add(1)
 
-	// start first reconcile immediately
-	if result, err := cm.topicService.Reconcile(); err == nil {
-		// consumer will subscribe to the topic so all partitions (even if we have less brokers)
-		cm.consumerService.Consume(len(result.Assignments))
-		// producer just needs to send from partition 0 to brokersNumber - 1
-		cm.producerService.Send(result.BrokersNumber)
-	} else {
-		log.Printf("Error starting manager: %v", err)
-		panic(err)
+	// using the same bootstrap configuration that makes sense during the canary start up
+	backoff := services.NewBackoff(cm.canaryConfig.BootstrapBackoffMaxAttempts, cm.canaryConfig.BootstrapBackoffScale*time.Millisecond, services.MaxDefault)
+	for {
+		// start first reconcile immediately
+		if result, err := cm.topicService.Reconcile(); err == nil {
+			// consumer will subscribe to the topic so all partitions (even if we have less brokers)
+			cm.consumerService.Consume(len(result.Assignments))
+			// producer just needs to send from partition 0 to brokersNumber - 1
+			cm.producerService.Send(result.BrokersNumber)
+			break
+		} else if e, ok := err.(*services.ErrExpectedClusterSize); ok {
+			// if the "dynamic" reassignment is disabled, an error may occur with expected cluster size not met yet
+			delay, backoffErr := backoff.Delay()
+			if backoffErr != nil {
+				log.Printf("Max attempts waiting for the expected cluster size: %v", e)
+				os.Exit(1)
+			}
+			log.Printf("Error on expected cluster size. Retrying in %d ms", delay.Milliseconds())
+			time.Sleep(delay)
+		} else {
+			log.Printf("Error starting manager: %v", err)
+			panic(err)
+		}
 	}
 
 	ticker := time.NewTicker(cm.canaryConfig.ReconcileInterval * time.Millisecond)
