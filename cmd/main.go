@@ -23,8 +23,8 @@ func main() {
 	canaryConfig := config.NewCanaryConfig()
 	log.Printf("Starting Strimzi canary tool with config: %+v\n", canaryConfig)
 
-	metricsServer := servers.NewMetricsServer()
-	metricsServer.Start()
+	httpServer := servers.NewHttpServer()
+	httpServer.Start()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGKILL)
@@ -43,7 +43,7 @@ func main() {
 		log.Printf("Got signal: %v\n", sig)
 	}
 	canaryManager.Stop()
-	metricsServer.Stop()
+	httpServer.Stop()
 
 	log.Printf("Strimzi canary stopped")
 }
