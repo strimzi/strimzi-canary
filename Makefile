@@ -1,7 +1,6 @@
-IMAGE_REGISTRY ?= quay.io
-IMAGE_ORG ?= strimzi
-IMAGE_REPO ?= strimzi-canary
-IMAGE_TAG ?= 0.0.1
+DOCKER_REGISTRY ?= docker.io
+DOCKER_ORG ?= $(USER)
+DOCKER_TAG ?= latest
 
 BINARY ?= strimzi-canary
 
@@ -11,11 +10,11 @@ go_build:
 
 docker_build:
 	echo "Building Docker image ..."
-	docker build -t ${IMAGE_REGISTRY}/${IMAGE_ORG}/${IMAGE_REPO}:${IMAGE_TAG} .
+	docker build -t ${DOCKER_REGISTRY}/${DOCKER_ORG}/canary:${DOCKER_TAG} .
 
 docker_push:
 	echo "Pushing Docker image ..."
-	docker push ${IMAGE_REGISTRY}/${IMAGE_ORG}/${IMAGE_REPO}:${IMAGE_TAG}
+	docker push ${DOCKER_REGISTRY}/${DOCKER_ORG}/canary:${DOCKER_TAG}
 
 all: go_build docker_build docker_push
 
