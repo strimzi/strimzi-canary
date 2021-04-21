@@ -65,6 +65,10 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 	config.Producer.Return.Successes = true
 	config.Producer.RequiredAcks = sarama.WaitForAll
 
+	if canaryConfig.SaramaLogEnabled {
+		sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
+	}
+
 	backoff := services.NewBackoff(canaryConfig.BootstrapBackoffMaxAttempts, canaryConfig.BootstrapBackoffScale*time.Millisecond, services.MaxDefault)
 	for {
 		client, clientErr := sarama.NewClient([]string{canaryConfig.BootstrapServers}, config)
