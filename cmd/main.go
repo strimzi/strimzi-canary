@@ -29,7 +29,11 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGKILL)
 
-	client := newClient(canaryConfig)
+	client, err := newClient(canaryConfig)
+	if err != nil {
+		log.Printf("Error creating new Sarama client: %v", err)
+		os.Exit(1)
+	}
 
 	topicService := services.NewTopicService(canaryConfig, client)
 	producerService := services.NewProducerService(canaryConfig, client)
@@ -48,9 +52,13 @@ func main() {
 	log.Printf("Strimzi canary stopped")
 }
 
-func newClient(canaryConfig *config.CanaryConfig) sarama.Client {
+func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 	config := sarama.NewConfig()
-	config.Version = sarama.V2_6_0_0
+	kafkaVersion, err := sarama.ParseKafkaVersion(canaryConfig.KafkaVersion)
+	if err != nil {
+		return nil, err
+	}
+	config.Version = kafkaVersion
 	config.ClientID = canaryConfig.ClientID
 	// set manual partitioner in order to specify the destination partition on sending
 	config.Producer.Partitioner = sarama.NewManualPartitioner
@@ -61,12 +69,12 @@ func newClient(canaryConfig *config.CanaryConfig) sarama.Client {
 	for {
 		client, clientErr := sarama.NewClient([]string{canaryConfig.BootstrapServers}, config)
 		if clientErr == nil {
-			return client
+			return client, nil
 		}
 		delay, backoffErr := backoff.Delay()
 		if backoffErr != nil {
 			log.Printf("Error connecting to the Kafka cluster after %d retries: %v", canaryConfig.BootstrapBackoffMaxAttempts, backoffErr)
-			os.Exit(1)
+			return nil, backoffErr
 		}
 		log.Printf("Error creating new Sarama client, retrying in %d ms: %v", delay.Milliseconds(), clientErr)
 		time.Sleep(delay)
