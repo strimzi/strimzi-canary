@@ -28,6 +28,7 @@ const (
 	EndToEndLatencyBucketsEnvVar      = "ENDTOEND_LATENCY_BUCKETS"
 	ExpectedClusterSizeEnvVar         = "EXPECTED_CLUSTER_SIZE"
 	KafkaVersionEnvVar                = "KAFKA_VERSION"
+	SaramaLogEnabledEnvVar            = "SARAMA_LOG_ENABLED"
 
 	// default values for environment variables
 	BootstrapServersDefault            = "localhost:9092"
@@ -42,6 +43,7 @@ const (
 	EndToEndLatencyBucketsDefault      = "100,200,400,800,1600"
 	ExpectedClusterSizeDefault         = -1 // "dynamic" reassignment is enabled
 	KafkaVersionDefault                = "2.7.0"
+	SaramaLogEnabledDefault            = false
 )
 
 // CanaryConfig defines the canary tool configuration
@@ -58,6 +60,7 @@ type CanaryConfig struct {
 	EndToEndLatencyBuckets      []float64
 	ExpectedClusterSize         int
 	KafkaVersion                string
+	SaramaLogEnabled            bool
 }
 
 // NewCanaryConfig returns an configuration instance from environment variables
@@ -75,6 +78,7 @@ func NewCanaryConfig() *CanaryConfig {
 		EndToEndLatencyBuckets:      latencyBuckets(lookupStringEnv(EndToEndLatencyBucketsEnvVar, EndToEndLatencyBucketsDefault)),
 		ExpectedClusterSize:         lookupIntEnv(ExpectedClusterSizeEnvVar, ExpectedClusterSizeDefault),
 		KafkaVersion:                lookupStringEnv(KafkaVersionEnvVar, KafkaVersionDefault),
+		SaramaLogEnabled:            lookupBoolEnv(SaramaLogEnabledEnvVar, SaramaLogEnabledDefault),
 	}
 	return &config
 }
@@ -120,7 +124,8 @@ func latencyBuckets(bucketsConfig string) []float64 {
 
 func (c CanaryConfig) String() string {
 	return fmt.Sprintf("{BootstrapServers:%s, BootstrapBackoffMaxAttempts:%d, BootstrapBackoffScale:%d, Topic:%s, ReconcileInterval:%d ms, "+
-		"ClientID:%s, ConsumerGroupID:%s, TLSEnabled:%t, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d, KafkaVersion:%s}",
+		"ClientID:%s, ConsumerGroupID:%s, TLSEnabled:%t, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d, KafkaVersion:%s,"+
+		"SaramaLogEnabled:%t}",
 		c.BootstrapServers, c.BootstrapBackoffMaxAttempts, c.BootstrapBackoffScale, c.Topic, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
-		c.TLSEnabled, c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion)
+		c.TLSEnabled, c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion, c.SaramaLogEnabled)
 }
