@@ -1,6 +1,7 @@
 DOCKER_REGISTRY ?= docker.io
 DOCKER_ORG ?= $(USER)
 DOCKER_TAG ?= latest
+DOCKER_REPO ?= canary
 
 BINARY ?= strimzi-canary
 
@@ -10,11 +11,11 @@ go_build:
 
 docker_build:
 	echo "Building Docker image ..."
-	docker build -t ${DOCKER_REGISTRY}/${DOCKER_ORG}/canary:${DOCKER_TAG} .
+	docker build -t ${DOCKER_REGISTRY}/${DOCKER_ORG}/${DOCKER_REPO}:${DOCKER_TAG} .
 
 docker_push:
 	echo "Pushing Docker image ..."
-	docker push ${DOCKER_REGISTRY}/${DOCKER_ORG}/canary:${DOCKER_TAG}
+	docker push ${DOCKER_REGISTRY}/${DOCKER_ORG}/${DOCKER_REPO}:${DOCKER_TAG}
 
 all: go_build docker_build docker_push
 
