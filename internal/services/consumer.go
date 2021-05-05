@@ -11,7 +11,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -51,8 +50,8 @@ type ConsumerService struct {
 	consumerGroup sarama.ConsumerGroup
 	// reference to the function for cancelling the Sarama consumer group context
 	// in order to ending the session and allowing a rejoin with rebalancing
-	cancel      context.CancelFunc
-	syncConsume sync.WaitGroup
+	cancel context.CancelFunc
+	ready  chan bool
 }
 
 // NewConsumerService returns an instance of ConsumerService
@@ -73,6 +72,7 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 		canaryConfig:  canaryConfig,
 		client:        client,
 		consumerGroup: consumerGroup,
+		ready:         make(chan bool),
 	}
 	return &cs
 }
@@ -91,18 +91,21 @@ func (cs *ConsumerService) Consume(numPartitions int) {
 		// creating new context with cancellation, for exiting Consume when metadata refresh is needed
 		ctx, cancel := context.WithCancel(context.Background())
 		cs.cancel = cancel
-		cs.syncConsume.Add(numPartitions)
 		go func() {
 			// the Consume has to be in a loop, because each time a metadata refresh happens, this method exits
 			// and needs to be called again for a new session and rejoining group
 			for {
+
+				log.Printf("Consumer group consume starting...")
 				// this method calls the methods handler on each stage: setup, consume and cleanup
 				cs.consumerGroup.Consume(ctx, []string{cs.canaryConfig.Topic}, cgh)
 
 				// check if context was cancelled, because of forcing a refresh metadata or exiting the consumer
 				if ctx.Err() != nil {
+					log.Printf("Consumer group context cancelled")
 					return
 				}
+				cs.ready = make(chan bool)
 			}
 		}()
 
@@ -121,6 +124,7 @@ func (cs *ConsumerService) Consume(numPartitions int) {
 			}
 			time.Sleep(delay)
 		} else {
+			log.Println("Sarama consumer group up and running")
 			break
 		}
 	}
@@ -134,31 +138,13 @@ func (cs *ConsumerService) wait(timeout time.Duration) bool {
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
-		cs.syncConsume.Wait()
+		<-cs.ready
 	}()
 	select {
 	case <-c:
 		return false
 	case <-time.After(timeout):
 		return true
-	}
-}
-
-// Refresh does a refresh metadata
-//
-// Because of the way how Sarama consumer group works, the refresh is done in the following way:
-// 1. calling the cancel context function for allowing the consumer group exiting the Consume function
-// 2. calling again the Consume for refreshing metadata internally in Sarama and rejoining the consumer group
-//
-// NOTE: because of calling the Consume function, it waits for the consumer to join the group
-// for all the partitions provided with numPartitions parameter and then returns
-func (cs *ConsumerService) Refresh(numPartitions int) {
-	if cs.cancel != nil {
-		// cancel the consumer context to allow exiting the Consume loop
-		// Consume will be called again to sync metadata and rejoining the group
-		log.Printf("Consumer refreshing metadata")
-		cs.cancel()
-		cs.Consume(numPartitions)
 	}
 }
 
@@ -180,6 +166,8 @@ type consumerGroupHandler struct {
 
 func (cgh *consumerGroupHandler) Setup(sarama.ConsumerGroupSession) error {
 	log.Printf("Consumer group handler setup\n")
+	// signaling the consumer group is ready
+	close(cgh.consumerService.ready)
 	return nil
 }
 
@@ -190,8 +178,6 @@ func (cgh *consumerGroupHandler) Cleanup(sarama.ConsumerGroupSession) error {
 
 func (cgh *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	log.Printf("Consumer group handler consumeclaim\n")
-	// signal that consumer is now ready for the current partition
-	cgh.consumerService.syncConsume.Done()
 
 	for message := range claim.Messages() {
 		timestamp := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
