@@ -81,8 +81,8 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 //
 // This function starts a goroutine calling in an endless loop the consume on the Sarama consumer group
 // It can be exited cancelling the corresponding context through the cancel function provided by the ConsumerService instance
-// Before returning, it waits for the consumer to join the group for all the partitions provided with numPartitions parameter
-func (cs *ConsumerService) Consume(numPartitions int) {
+// Before returning, it waits for the consumer to join the group for all the topic partitions
+func (cs *ConsumerService) Consume() {
 	backoff := NewBackoff(maxConsumeAttempts, 5000*time.Millisecond, MaxDefault)
 	for {
 		cgh := &consumerGroupHandler{
