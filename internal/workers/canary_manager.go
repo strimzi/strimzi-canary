@@ -50,7 +50,7 @@ func (cm *CanaryManager) Start() {
 		// start first reconcile immediately
 		if result, err := cm.topicService.Reconcile(); err == nil {
 			// consumer will subscribe to the topic so all partitions (even if we have less brokers)
-			cm.consumerService.Consume(len(result.Assignments))
+			cm.consumerService.Consume()
 			// producer just needs to send from partition 0 to brokersNumber - 1
 			cm.producerService.Send(result.BrokersNumber)
 			break
