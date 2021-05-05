@@ -106,8 +106,6 @@ func (cm *CanaryManager) reconcile() {
 
 	if result, err := cm.topicService.Reconcile(); err == nil {
 		if result.RefreshMetadata {
-			// consumer will subscribe to the topic so all partitions (even if we have less brokers)
-			cm.consumerService.Refresh(len(result.Assignments))
 			cm.producerService.Refresh()
 		}
 		// producer just needs to send from partition 0 to brokersNumber - 1
