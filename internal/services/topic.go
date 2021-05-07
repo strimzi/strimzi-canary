@@ -8,12 +8,11 @@ package services
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/golang/glog"
 	"github.com/strimzi/strimzi-canary/internal/config"
 )
 
@@ -46,7 +45,7 @@ func (e *ErrExpectedClusterSize) Error() string {
 func NewTopicService(canaryConfig *config.CanaryConfig, client sarama.Client) *TopicService {
 	admin, err := sarama.NewClusterAdminFromClient(client)
 	if err != nil {
-		log.Printf("Error creating the Sarama cluster admin: %v", err)
+		glog.Errorf("Error creating the Sarama cluster admin: %v", err)
 		panic(err)
 	}
 	ts := TopicService{
@@ -76,7 +75,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 	// on creation or cluster scale up/down when topic already exists
 	brokers, _, err := ts.admin.DescribeCluster()
 	if err != nil {
-		log.Printf("Error describing cluster: %v", err)
+		glog.Errorf("Error describing cluster: %v", err)
 		return result, err
 	}
 	// the brokers number that reflects the expected partitions for sending messages can be dynamic or fixed/expected
@@ -89,7 +88,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 
 	metadata, err := ts.admin.DescribeTopics([]string{ts.canaryConfig.Topic})
 	if err != nil {
-		log.Printf("Error retrieving metadata for topic %s: %v", ts.canaryConfig.Topic, err)
+		glog.Errorf("Error retrieving metadata for topic %s: %v", ts.canaryConfig.Topic, err)
 		return result, err
 	}
 	topicMetadata := metadata[0]
@@ -97,35 +96,35 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 	if topicMetadata.Err == sarama.ErrUnknownTopicOrPartition {
 
 		// canary topic doesn't exist, going to create it
-		log.Printf("The canary topic %s doesn't exist\n", topicMetadata.Name)
+		glog.V(1).Infof("The canary topic %s doesn't existn", topicMetadata.Name)
 		// topic is created if "dynamic" reassignment is enabled or the expected brokers are provided by the describe cluster
 		if ts.isDynamicReassignmentEnabled() || ts.canaryConfig.ExpectedClusterSize == len(brokers) {
 
 			if result.Assignments, err = ts.createTopic(len(brokers)); err != nil {
-				log.Printf("Error creating topic %s: %v", topicMetadata.Name, err)
+				glog.Errorf("Error creating topic %s: %v", topicMetadata.Name, err)
 				return result, err
 			}
-			log.Printf("The canary topic %s was created\n", topicMetadata.Name)
+			glog.Infof("The canary topic %s was created", topicMetadata.Name)
 		} else {
-			log.Printf("The canary topic wasn't created. Expected brokers %d, Actual brokers %d",
-				ts.canaryConfig.ExpectedClusterSize, len(brokers))
+			glog.Warningf("The canary topic %s wasn't created. Expected brokers %d, Actual brokers %d",
+				topicMetadata.Name, ts.canaryConfig.ExpectedClusterSize, len(brokers))
 			// not creating the topic and returning error to avoid starting producer/consumer
 			return result, &ErrExpectedClusterSize{}
 		}
 
 	} else {
 		// canary topic already exists, check replicas assignments
-		log.Printf("The canary topic %s already exists\n", topicMetadata.Name)
+		glog.V(1).Infof("The canary topic %s already exists", topicMetadata.Name)
 		logTopicMetadata(topicMetadata)
 
 		// topic partitions reassignment happens if "dynamic" reassignment is enabled
 		// or the topic service is just starting up
 		if ts.isDynamicReassignmentEnabled() || !ts.initialized {
 
-			log.Printf("Going to alter topic and reassigning partitions if needed")
+			glog.Infof("Going to alter topic and reassigning partitions if needed")
 			result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
 			if result.Assignments, err = ts.alterTopic(len(topicMetadata.Partitions), len(brokers)); err != nil {
-				log.Printf("Error altering topic %s: %v", topicMetadata.Name, err)
+				glog.Errorf("Error altering topic %s: %v", topicMetadata.Name, err)
 				return result, err
 			}
 			ts.checkTopic(len(brokers), topicMetadata)
@@ -139,14 +138,13 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 
 // Close closes the underneath Sarama admin instance
 func (ts *TopicService) Close() {
-	log.Printf("Closing topic service")
+	glog.Infof("Closing topic service")
 
 	err := ts.admin.Close()
 	if err != nil {
-		log.Printf("Error closing the Sarama cluster admin: %v", err)
-		os.Exit(1)
+		glog.Fatalf("Error closing the Sarama cluster admin: %v", err)
 	}
-	log.Printf("Topic service closed")
+	glog.Infof("Topic service closed")
 }
 
 func (ts *TopicService) createTopic(brokersNumber int) (map[int32][]int32, error) {
@@ -175,7 +173,6 @@ func (ts *TopicService) alterTopic(currentPartitions int, brokersNumber int) (ma
 		assignments[i] = make([]int32, len(assignmentsMap[int32(i)]))
 		copy(assignments[i], assignmentsMap[int32(i)])
 	}
-	log.Printf("%v", assignments)
 
 	var err error
 	// less partitions than brokers (scale up)
@@ -204,7 +201,7 @@ func (ts *TopicService) checkTopic(brokersNumber int, metadata *sarama.TopicMeta
 			}
 		}
 	}
-	log.Printf("Elect leader = %t\n", electLeader)
+	glog.V(2).Infof("Elect leader = %t", electLeader)
 }
 
 func (ts *TopicService) assignments(currentPartitions int, brokersNumber int) (map[int32][]int32, int) {
@@ -221,7 +218,7 @@ func (ts *TopicService) assignments(currentPartitions int, brokersNumber int) (m
 			k++
 		}
 	}
-	log.Printf("assignments = %v, minISR = %d", assignments, int(minISR))
+	glog.V(1).Infof("Topic %s requested partitions assignments = %v, minISR = %d", ts.canaryConfig.Topic, assignments, int(minISR))
 	return assignments, int(minISR)
 }
 
@@ -248,7 +245,7 @@ func (ts *TopicService) alterAssignments(assignments [][]int32) error {
 		}
 		// on each partition of the topic shouldn't be adding or removing replicas ongoing
 		for _, reassignmentStatus := range reassignments[ts.canaryConfig.Topic] {
-			log.Printf("List reassignments = %+v\n", reassignmentStatus)
+			glog.V(1).Infof("List reassignments = %+v", reassignmentStatus)
 			ongoing = ongoing || (len(reassignmentStatus.AddingReplicas) != 0 || len(reassignmentStatus.RemovingReplicas) != 0)
 		}
 		if !ongoing {
@@ -279,8 +276,8 @@ func min(x, y int) int {
 }
 
 func logTopicMetadata(topicMetadata *sarama.TopicMetadata) {
-	log.Printf("Metadata for %s topic\n", topicMetadata.Name)
+	glog.V(1).Infof("Metadata for %s topic", topicMetadata.Name)
 	for _, p := range topicMetadata.Partitions {
-		log.Printf("\t{ID:%d Leader:%d Replicas:%v Isr:%v OfflineReplicas:%v}\n", p.ID, p.Leader, p.Replicas, p.Isr, p.OfflineReplicas)
+		glog.V(1).Infof("\t{ID:%d Leader:%d Replicas:%v Isr:%v OfflineReplicas:%v}", p.ID, p.Leader, p.Replicas, p.Isr, p.OfflineReplicas)
 	}
 }

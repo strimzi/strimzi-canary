@@ -8,12 +8,11 @@ package services
 
 import (
 	"context"
-	"log"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
@@ -65,7 +64,7 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 
 	consumerGroup, err := sarama.NewConsumerGroupFromClient(canaryConfig.ConsumerGroupID, client)
 	if err != nil {
-		log.Printf("Error creating the Sarama consumer: %v", err)
+		glog.Errorf("Error creating the Sarama consumer: %v", err)
 		panic(err)
 	}
 	cs := ConsumerService{
@@ -96,13 +95,13 @@ func (cs *ConsumerService) Consume() {
 			// and needs to be called again for a new session and rejoining group
 			for {
 
-				log.Printf("Consumer group consume starting...")
+				glog.Infof("Consumer group consume starting...")
 				// this method calls the methods handler on each stage: setup, consume and cleanup
 				cs.consumerGroup.Consume(ctx, []string{cs.canaryConfig.Topic}, cgh)
 
 				// check if context was cancelled, because of forcing a refresh metadata or exiting the consumer
 				if ctx.Err() != nil {
-					log.Printf("Consumer group context cancelled")
+					glog.Infof("Consumer group context cancelled")
 					return
 				}
 				cs.ready = make(chan bool)
@@ -116,15 +115,14 @@ func (cs *ConsumerService) Consume() {
 				"clientid": cs.canaryConfig.ClientID,
 			}
 			timeoutJoinGroup.With(labels).Inc()
-			log.Printf("Consumer joining group timed out!")
+			glog.Warningf("Consumer joining group timed out!")
 			delay, err := backoff.Delay()
 			if err != nil {
-				log.Printf("Error joining the consumer group: %v", err)
-				os.Exit(1)
+				glog.Fatalf("Error joining the consumer group: %v", err)
 			}
 			time.Sleep(delay)
 		} else {
-			log.Println("Sarama consumer group up and running")
+			glog.Infof("Sarama consumer group up and running")
 			break
 		}
 	}
@@ -150,13 +148,12 @@ func (cs *ConsumerService) wait(timeout time.Duration) bool {
 
 // Close closes the underneath Sarama consumer group instance
 func (cs *ConsumerService) Close() {
-	log.Printf("Closing consumer")
+	glog.Infof("Closing consumer")
 	err := cs.consumerGroup.Close()
 	if err != nil {
-		log.Printf("Error closing the Sarama consumer: %v", err)
-		os.Exit(1)
+		glog.Fatalf("Error closing the Sarama consumer: %v", err)
 	}
-	log.Printf("Consumer closed")
+	glog.Infof("Consumer closed")
 }
 
 // consumerGroupHandler defines the handler for the consuming Sarama functions
@@ -165,25 +162,25 @@ type consumerGroupHandler struct {
 }
 
 func (cgh *consumerGroupHandler) Setup(sarama.ConsumerGroupSession) error {
-	log.Printf("Consumer group handler setup\n")
+	glog.Infof("Consumer group setup")
 	// signaling the consumer group is ready
 	close(cgh.consumerService.ready)
 	return nil
 }
 
 func (cgh *consumerGroupHandler) Cleanup(sarama.ConsumerGroupSession) error {
-	log.Printf("Consumer group handler cleanup\n")
+	glog.Infof("Consumer group cleanup")
 	return nil
 }
 
 func (cgh *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	log.Printf("Consumer group handler consumeclaim\n")
+	glog.Infof("Consumer group consumeclaim on %s [%d]", claim.Topic(), claim.Partition())
 
 	for message := range claim.Messages() {
 		timestamp := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
 		cm := NewCanaryMessage(message.Value)
 		duration := timestamp - cm.Timestamp
-		log.Printf("Message received: value=%+v, partition=%d, offset=%d, duration=%d ms", cm, message.Partition, message.Offset, duration)
+		glog.V(1).Infof("Message received: value=%+v, partition=%d, offset=%d, duration=%d ms", cm, message.Partition, message.Offset, duration)
 		session.MarkMessage(message, "")
 		labels := prometheus.Labels{
 			"clientid":  cgh.consumerService.canaryConfig.ClientID,

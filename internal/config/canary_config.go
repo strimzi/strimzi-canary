@@ -29,6 +29,7 @@ const (
 	ExpectedClusterSizeEnvVar         = "EXPECTED_CLUSTER_SIZE"
 	KafkaVersionEnvVar                = "KAFKA_VERSION"
 	SaramaLogEnabledEnvVar            = "SARAMA_LOG_ENABLED"
+	VerbosityLogLevelEnvVar           = "VERBOSITY_LOG_LEVEL"
 
 	// default values for environment variables
 	BootstrapServersDefault            = "localhost:9092"
@@ -44,6 +45,7 @@ const (
 	ExpectedClusterSizeDefault         = -1 // "dynamic" reassignment is enabled
 	KafkaVersionDefault                = "2.7.0"
 	SaramaLogEnabledDefault            = false
+	VerbosityLogLevelDefault           = 0 // default 0 = INFO, 1 = DEBUG, 2 = TRACE
 )
 
 // CanaryConfig defines the canary tool configuration
@@ -61,6 +63,7 @@ type CanaryConfig struct {
 	ExpectedClusterSize         int
 	KafkaVersion                string
 	SaramaLogEnabled            bool
+	VerbosityLogLevel           int
 }
 
 // NewCanaryConfig returns an configuration instance from environment variables
@@ -79,6 +82,7 @@ func NewCanaryConfig() *CanaryConfig {
 		ExpectedClusterSize:         lookupIntEnv(ExpectedClusterSizeEnvVar, ExpectedClusterSizeDefault),
 		KafkaVersion:                lookupStringEnv(KafkaVersionEnvVar, KafkaVersionDefault),
 		SaramaLogEnabled:            lookupBoolEnv(SaramaLogEnabledEnvVar, SaramaLogEnabledDefault),
+		VerbosityLogLevel:           lookupIntEnv(VerbosityLogLevelEnvVar, VerbosityLogLevelDefault),
 	}
 	return &config
 }
@@ -125,7 +129,7 @@ func latencyBuckets(bucketsConfig string) []float64 {
 func (c CanaryConfig) String() string {
 	return fmt.Sprintf("{BootstrapServers:%s, BootstrapBackoffMaxAttempts:%d, BootstrapBackoffScale:%d, Topic:%s, ReconcileInterval:%d ms, "+
 		"ClientID:%s, ConsumerGroupID:%s, TLSEnabled:%t, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d, KafkaVersion:%s,"+
-		"SaramaLogEnabled:%t}",
+		"SaramaLogEnabled:%t, VerbosityLogLevel:%d}",
 		c.BootstrapServers, c.BootstrapBackoffMaxAttempts, c.BootstrapBackoffScale, c.Topic, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
-		c.TLSEnabled, c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion, c.SaramaLogEnabled)
+		c.TLSEnabled, c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion, c.SaramaLogEnabled, c.VerbosityLogLevel)
 }

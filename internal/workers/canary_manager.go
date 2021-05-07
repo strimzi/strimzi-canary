@@ -7,11 +7,10 @@
 package workers
 
 import (
-	"log"
-	"os"
 	"sync"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/strimzi/strimzi-canary/internal/config"
 	"github.com/strimzi/strimzi-canary/internal/services"
 )
@@ -39,7 +38,7 @@ func NewCanaryManager(canaryConfig *config.CanaryConfig, topicService *services.
 
 // Start runs a first reconcile and start a timer for periodic reconciling
 func (cm *CanaryManager) Start() {
-	log.Printf("Starting canary manager")
+	glog.Infof("Starting canary manager")
 
 	cm.stop = make(chan struct{})
 	cm.syncStop.Add(1)
@@ -58,13 +57,12 @@ func (cm *CanaryManager) Start() {
 			// if the "dynamic" reassignment is disabled, an error may occur with expected cluster size not met yet
 			delay, backoffErr := backoff.Delay()
 			if backoffErr != nil {
-				log.Printf("Max attempts waiting for the expected cluster size: %v", e)
-				os.Exit(1)
+				glog.Fatalf("Max attempts waiting for the expected cluster size: %v", e)
 			}
-			log.Printf("Error on expected cluster size. Retrying in %d ms", delay.Milliseconds())
+			glog.Warningf("Error on expected cluster size. Retrying in %d ms", delay.Milliseconds())
 			time.Sleep(delay)
 		} else {
-			log.Printf("Error starting manager: %v", err)
+			glog.Errorf("Error starting manager: %v", err)
 			panic(err)
 		}
 	}
@@ -74,12 +72,11 @@ func (cm *CanaryManager) Start() {
 		for {
 			select {
 			case <-ticker.C:
-				log.Println("Canary manager reconcile")
 				cm.reconcile()
 			case <-cm.stop:
 				ticker.Stop()
 				defer cm.syncStop.Done()
-				log.Println("Stopping canary manager reconcile loop")
+				glog.Infof("Stopping canary manager reconcile loop")
 				return
 			}
 		}
@@ -88,7 +85,7 @@ func (cm *CanaryManager) Start() {
 
 // Stop stops the services and the reconcile timer
 func (cm *CanaryManager) Stop() {
-	log.Printf("Stopping canary manager")
+	glog.Infof("Stopping canary manager")
 
 	// ask to stop the ticker reconcile loop and wait
 	close(cm.stop)
@@ -98,11 +95,11 @@ func (cm *CanaryManager) Stop() {
 	cm.consumerService.Close()
 	cm.topicService.Close()
 
-	log.Printf("Canary manager closed")
+	glog.Infof("Canary manager closed")
 }
 
 func (cm *CanaryManager) reconcile() {
-	log.Printf("Canary manager reconcile ...")
+	glog.Infof("Canary manager reconcile ...")
 
 	if result, err := cm.topicService.Reconcile(); err == nil {
 		if result.RefreshMetadata {
@@ -112,5 +109,5 @@ func (cm *CanaryManager) reconcile() {
 		cm.producerService.Send(result.BrokersNumber)
 	}
 
-	log.Printf("... reconcile done")
+	glog.Infof("... reconcile done")
 }

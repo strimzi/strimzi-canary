@@ -7,12 +7,11 @@
 package services
 
 import (
-	"log"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
@@ -55,7 +54,7 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 
 	producer, err := sarama.NewSyncProducerFromClient(client)
 	if err != nil {
-		log.Printf("Error creating the Sarama sync producer: %v", err)
+		glog.Errorf("Error creating the Sarama sync producer: %v", err)
 		panic(err)
 	}
 	ps := ProducerService{
@@ -76,7 +75,7 @@ func (ps *ProducerService) Send(numPartitions int) {
 		cm := ps.newCanaryMessage()
 		msg.Value = sarama.StringEncoder(cm.Json())
 		msg.Partition = int32(i)
-		log.Printf("Sending message: value=%s on partition=%d\n", msg.Value, msg.Partition)
+		glog.V(1).Infof("Sending message: value=%s on partition=%d", msg.Value, msg.Partition)
 		partition, offset, err := ps.producer.SendMessage(msg)
 		timestamp := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
 		labels := prometheus.Labels{
@@ -85,11 +84,11 @@ func (ps *ProducerService) Send(numPartitions int) {
 		}
 		recordsProduced.With(labels).Inc()
 		if err != nil {
-			log.Printf("Erros sending message: %v\n", err)
+			glog.Warningf("Erros sending message: %v", err)
 			recordsProducedFailed.With(labels).Inc()
 		} else {
 			duration := timestamp - cm.Timestamp
-			log.Printf("Message sent: partition=%d, offset=%d, duration=%d ms\n", partition, offset, duration)
+			glog.V(1).Infof("Message sent: partition=%d, offset=%d, duration=%d ms", partition, offset, duration)
 			recordsProducedLatency.With(labels).Observe(float64(duration))
 		}
 	}
@@ -97,21 +96,20 @@ func (ps *ProducerService) Send(numPartitions int) {
 
 // Refresh does a refresh metadata on the underneath Sarama client
 func (ps *ProducerService) Refresh() {
-	log.Printf("Producer refreshing metadata")
+	glog.Infof("Producer refreshing metadata")
 	if err := ps.client.RefreshMetadata(ps.canaryConfig.Topic); err != nil {
-		log.Printf("Errors producer refreshing metadata: %v\n", err)
+		glog.Errorf("Errors producer refreshing metadata: %v", err)
 	}
 }
 
 // Close closes the underneath Sarama producer instance
 func (ps *ProducerService) Close() {
-	log.Printf("Closing producer")
+	glog.Infof("Closing producer")
 	err := ps.producer.Close()
 	if err != nil {
-		log.Printf("Error closing the Sarama sync producer: %v", err)
-		os.Exit(1)
+		glog.Fatalf("Error closing the Sarama sync producer: %v", err)
 	}
-	log.Printf("Producer closed")
+	glog.Infof("Producer closed")
 }
 
 func (ps *ProducerService) newCanaryMessage() CanaryMessage {
