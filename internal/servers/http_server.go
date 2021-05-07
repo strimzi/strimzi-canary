@@ -8,10 +8,10 @@ package servers
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/strimzi/strimzi-canary/internal/services"
 )
@@ -37,7 +37,7 @@ func NewHttpServer() *HttpServer {
 
 // Start runs the HTTP server in its own go routine
 func (ms *HttpServer) Start() {
-	log.Printf("Starting HTTP server")
+	glog.Infof("Starting HTTP server")
 	go func() {
 		ms.httpServer.ListenAndServe()
 	}()
@@ -45,11 +45,11 @@ func (ms *HttpServer) Start() {
 
 // Stop stops the HTTP server exiting the go routine
 func (ms *HttpServer) Stop() {
-	log.Printf("Stopping HTTP server")
+	glog.Infof("Stopping HTTP server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	ms.httpServer.Shutdown(ctx)
 
-	log.Printf("HTTP server closed")
+	glog.Infof("HTTP server closed")
 }

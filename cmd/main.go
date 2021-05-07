@@ -5,13 +5,16 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/golang/glog"
 	"github.com/strimzi/strimzi-canary/internal/config"
 	"github.com/strimzi/strimzi-canary/internal/servers"
 	"github.com/strimzi/strimzi-canary/internal/services"
@@ -21,7 +24,15 @@ import (
 func main() {
 	// get canary configuration
 	canaryConfig := config.NewCanaryConfig()
-	log.Printf("Starting Strimzi canary tool with config: %+v\n", canaryConfig)
+
+	// Always log to stderr by default
+	if err := flag.Set("logtostderr", "true"); err != nil {
+		glog.Errorf("Error on setting logtostderr to true")
+	}
+	flag.Set("v", strconv.Itoa(canaryConfig.VerbosityLogLevel))
+	flag.Parse()
+
+	glog.Infof("Starting Strimzi canary tool with config: %+v", canaryConfig)
 
 	httpServer := servers.NewHttpServer()
 	httpServer.Start()
@@ -31,8 +42,7 @@ func main() {
 
 	client, err := newClient(canaryConfig)
 	if err != nil {
-		log.Printf("Error creating new Sarama client: %v", err)
-		os.Exit(1)
+		glog.Fatalf("Error creating new Sarama client: %v", err)
 	}
 
 	topicService := services.NewTopicService(canaryConfig, client)
@@ -44,12 +54,12 @@ func main() {
 
 	select {
 	case sig := <-signals:
-		log.Printf("Got signal: %v\n", sig)
+		glog.Infof("Got signal: %v", sig)
 	}
 	canaryManager.Stop()
 	httpServer.Stop()
 
-	log.Printf("Strimzi canary stopped")
+	glog.Infof("Strimzi canary stopped")
 }
 
 func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
@@ -77,10 +87,10 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 		}
 		delay, backoffErr := backoff.Delay()
 		if backoffErr != nil {
-			log.Printf("Error connecting to the Kafka cluster after %d retries: %v", canaryConfig.BootstrapBackoffMaxAttempts, backoffErr)
+			glog.Errorf("Error connecting to the Kafka cluster after %d retries: %v", canaryConfig.BootstrapBackoffMaxAttempts, backoffErr)
 			return nil, backoffErr
 		}
-		log.Printf("Error creating new Sarama client, retrying in %d ms: %v", delay.Milliseconds(), clientErr)
+		glog.Warningf("Error creating new Sarama client, retrying in %d ms: %v", delay.Milliseconds(), clientErr)
 		time.Sleep(delay)
 	}
 }
