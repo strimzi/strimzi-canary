@@ -19,8 +19,6 @@ import (
 
 // TopicReconcileResult contains the result of a topic reconcile
 type TopicReconcileResult struct {
-	// new current number of brokers
-	BrokersNumber int
 	// new partitions assignments across brokers
 	Assignments map[int32][]int32
 	// if a refresh metadata is needed
@@ -71,20 +69,13 @@ func NewTopicService(canaryConfig *config.CanaryConfig, client sarama.Client) *T
 //
 // If a scale up, scale down, scale up happens, it forces a leader election for having preferred leaders
 func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
-	result := TopicReconcileResult{0, nil, false}
+	result := TopicReconcileResult{nil, false}
 	// getting brokers for assigning canary topic replicas accordingly
 	// on creation or cluster scale up/down when topic already exists
 	brokers, _, err := ts.admin.DescribeCluster()
 	if err != nil {
 		glog.Errorf("Error describing cluster: %v", err)
 		return result, err
-	}
-	// the brokers number that reflects the expected partitions for sending messages can be dynamic or fixed/expected
-	// depending if the "dynamic" reassignment is enabled or not
-	if ts.isDynamicReassignmentEnabled() {
-		result.BrokersNumber = len(brokers)
-	} else {
-		result.BrokersNumber = ts.canaryConfig.ExpectedClusterSize
 	}
 
 	metadata, err := ts.admin.DescribeTopics([]string{ts.canaryConfig.Topic})
@@ -130,6 +121,8 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 			}
 			ts.checkTopic(len(brokers), topicMetadata)
 			// TODO force a leader election. The feature is missing in Sarama library right now.
+		} else {
+			result.Assignments = ts.currentAssignments(topicMetadata)
 		}
 
 	}
@@ -149,7 +142,7 @@ func (ts *TopicService) Close() {
 }
 
 func (ts *TopicService) createTopic(brokers []*sarama.Broker) (map[int32][]int32, error) {
-	assignments, minISR := ts.assignments(0, brokers)
+	assignments, minISR := ts.requestedAssignments(0, brokers)
 
 	v := strconv.Itoa(int(minISR))
 	topicConfig := map[string]*string{
@@ -168,7 +161,7 @@ func (ts *TopicService) createTopic(brokers []*sarama.Broker) (map[int32][]int32
 
 func (ts *TopicService) alterTopic(currentPartitions int, brokers []*sarama.Broker) (map[int32][]int32, error) {
 	brokersNumber := len(brokers)
-	assignmentsMap, _ := ts.assignments(currentPartitions, brokers)
+	assignmentsMap, _ := ts.requestedAssignments(currentPartitions, brokers)
 
 	assignments := make([][]int32, len(assignmentsMap))
 	for i := 0; i < len(assignments); i++ {
@@ -206,7 +199,7 @@ func (ts *TopicService) checkTopic(brokersNumber int, metadata *sarama.TopicMeta
 	glog.V(2).Infof("Elect leader = %t", electLeader)
 }
 
-func (ts *TopicService) assignments(currentPartitions int, brokers []*sarama.Broker) (map[int32][]int32, int) {
+func (ts *TopicService) requestedAssignments(currentPartitions int, brokers []*sarama.Broker) (map[int32][]int32, int) {
 	brokersNumber := len(brokers)
 	partitions := max(currentPartitions, brokersNumber)
 	replicationFactor := min(brokersNumber, 3)
@@ -231,6 +224,15 @@ func (ts *TopicService) assignments(currentPartitions int, brokers []*sarama.Bro
 	}
 	glog.V(1).Infof("Topic %s requested partitions assignments = %v, minISR = %d", ts.canaryConfig.Topic, assignments, int(minISR))
 	return assignments, int(minISR)
+}
+
+func (ts *TopicService) currentAssignments(topicMetadata *sarama.TopicMetadata) map[int32][]int32 {
+	assignments := make(map[int32][]int32, len(topicMetadata.Partitions))
+	for _, p := range topicMetadata.Partitions {
+		assignments[p.ID] = make([]int32, len(p.Replicas))
+		copy(assignments[p.ID], p.Replicas)
+	}
+	return assignments
 }
 
 // Alter the replica assignment for the partitions

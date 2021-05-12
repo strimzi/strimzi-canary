@@ -50,8 +50,8 @@ func (cm *CanaryManager) Start() {
 		if result, err := cm.topicService.Reconcile(); err == nil {
 			// consumer will subscribe to the topic so all partitions (even if we have less brokers)
 			cm.consumerService.Consume()
-			// producer just needs to send from partition 0 to brokersNumber - 1
-			cm.producerService.Send(result.BrokersNumber)
+			// producer has to send to partitions assigned to brokers
+			cm.producerService.Send(result.Assignments)
 			break
 		} else if e, ok := err.(*services.ErrExpectedClusterSize); ok {
 			// if the "dynamic" reassignment is disabled, an error may occur with expected cluster size not met yet
@@ -105,8 +105,8 @@ func (cm *CanaryManager) reconcile() {
 		if result.RefreshMetadata {
 			cm.producerService.Refresh()
 		}
-		// producer just needs to send from partition 0 to brokersNumber - 1
-		cm.producerService.Send(result.BrokersNumber)
+		// producer has to send to partitions assigned to brokers
+		cm.producerService.Send(result.Assignments)
 	}
 
 	glog.Infof("... reconcile done")
