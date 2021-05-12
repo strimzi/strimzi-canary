@@ -119,8 +119,8 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 		logTopicMetadata(topicMetadata)
 
 		// topic partitions reassignment happens if "dynamic" reassignment is enabled
-		// or the topic service is just starting up
-		if ts.isDynamicReassignmentEnabled() || !ts.initialized {
+		// or the topic service is just starting up with the expected number of brokers
+		if ts.isDynamicReassignmentEnabled() || (!ts.initialized && ts.canaryConfig.ExpectedClusterSize == len(brokers)) {
 
 			glog.Infof("Going to alter topic and reassigning partitions if needed")
 			result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
