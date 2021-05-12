@@ -8,6 +8,7 @@ package services
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -100,7 +101,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 		// topic is created if "dynamic" reassignment is enabled or the expected brokers are provided by the describe cluster
 		if ts.isDynamicReassignmentEnabled() || ts.canaryConfig.ExpectedClusterSize == len(brokers) {
 
-			if result.Assignments, err = ts.createTopic(len(brokers)); err != nil {
+			if result.Assignments, err = ts.createTopic(brokers); err != nil {
 				glog.Errorf("Error creating topic %s: %v", topicMetadata.Name, err)
 				return result, err
 			}
@@ -118,12 +119,12 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 		logTopicMetadata(topicMetadata)
 
 		// topic partitions reassignment happens if "dynamic" reassignment is enabled
-		// or the topic service is just starting up
-		if ts.isDynamicReassignmentEnabled() || !ts.initialized {
+		// or the topic service is just starting up with the expected number of brokers
+		if ts.isDynamicReassignmentEnabled() || (!ts.initialized && ts.canaryConfig.ExpectedClusterSize == len(brokers)) {
 
 			glog.Infof("Going to alter topic and reassigning partitions if needed")
 			result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
-			if result.Assignments, err = ts.alterTopic(len(topicMetadata.Partitions), len(brokers)); err != nil {
+			if result.Assignments, err = ts.alterTopic(len(topicMetadata.Partitions), brokers); err != nil {
 				glog.Errorf("Error altering topic %s: %v", topicMetadata.Name, err)
 				return result, err
 			}
@@ -147,8 +148,8 @@ func (ts *TopicService) Close() {
 	glog.Infof("Topic service closed")
 }
 
-func (ts *TopicService) createTopic(brokersNumber int) (map[int32][]int32, error) {
-	assignments, minISR := ts.assignments(0, brokersNumber)
+func (ts *TopicService) createTopic(brokers []*sarama.Broker) (map[int32][]int32, error) {
+	assignments, minISR := ts.assignments(0, brokers)
 
 	v := strconv.Itoa(int(minISR))
 	topicConfig := map[string]*string{
@@ -165,8 +166,9 @@ func (ts *TopicService) createTopic(brokersNumber int) (map[int32][]int32, error
 	return assignments, err
 }
 
-func (ts *TopicService) alterTopic(currentPartitions int, brokersNumber int) (map[int32][]int32, error) {
-	assignmentsMap, _ := ts.assignments(currentPartitions, brokersNumber)
+func (ts *TopicService) alterTopic(currentPartitions int, brokers []*sarama.Broker) (map[int32][]int32, error) {
+	brokersNumber := len(brokers)
+	assignmentsMap, _ := ts.assignments(currentPartitions, brokers)
 
 	assignments := make([][]int32, len(assignmentsMap))
 	for i := 0; i < len(assignments); i++ {
@@ -204,17 +206,26 @@ func (ts *TopicService) checkTopic(brokersNumber int, metadata *sarama.TopicMeta
 	glog.V(2).Infof("Elect leader = %t", electLeader)
 }
 
-func (ts *TopicService) assignments(currentPartitions int, brokersNumber int) (map[int32][]int32, int) {
+func (ts *TopicService) assignments(currentPartitions int, brokers []*sarama.Broker) (map[int32][]int32, int) {
+	brokersNumber := len(brokers)
 	partitions := max(currentPartitions, brokersNumber)
 	replicationFactor := min(brokersNumber, 3)
 	minISR := max(1, replicationFactor-1)
+
+	// partitions assignments algorithm is simpler and works effectively if brokers are ordered by ID
+	// it could not be the case from a Metadata request, so sorting them first
+	sort.Slice(brokers, func(i, j int) bool {
+		return brokers[i].ID() < brokers[j].ID()
+	})
 
 	assignments := make(map[int32][]int32, int(partitions))
 	for p := 0; p < int(partitions); p++ {
 		assignments[int32(p)] = make([]int32, int(replicationFactor))
 		k := p
 		for r := 0; r < int(replicationFactor); r++ {
-			assignments[int32(p)][r] = int32(k % int(brokersNumber))
+			// get brokers ID for assignment from the brokers list and not using
+			// just a monotonic increasing index because there could be "hole" (a broker down)
+			assignments[int32(p)][r] = brokers[int32(k%int(brokersNumber))].ID()
 			k++
 		}
 	}
@@ -276,6 +287,10 @@ func min(x, y int) int {
 }
 
 func logTopicMetadata(topicMetadata *sarama.TopicMetadata) {
+	// sorting partitions first, as it could not be from a Metadata request and it's better for logging
+	sort.Slice(topicMetadata.Partitions, func(i, j int) bool {
+		return topicMetadata.Partitions[i].ID < topicMetadata.Partitions[j].ID
+	})
 	glog.V(1).Infof("Metadata for %s topic", topicMetadata.Name)
 	for _, p := range topicMetadata.Partitions {
 		glog.V(1).Infof("\t{ID:%d Leader:%d Replicas:%v Isr:%v OfflineReplicas:%v}", p.ID, p.Leader, p.Replicas, p.Isr, p.OfflineReplicas)
