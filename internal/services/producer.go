@@ -65,8 +65,9 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 	return &ps
 }
 
-// Send sends one message to each partition from 0 to numPartitions specified as parameter
-func (ps *ProducerService) Send(numPartitions int) {
+// Send sends one message to partitions assigned to brokers
+func (ps *ProducerService) Send(partitionsAssignments map[int32][]int32) {
+	numPartitions := len(partitionsAssignments)
 	msg := &sarama.ProducerMessage{
 		Topic: ps.canaryConfig.Topic,
 	}
