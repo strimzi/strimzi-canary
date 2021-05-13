@@ -13,6 +13,8 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
 )
 
@@ -32,6 +34,32 @@ type TopicService struct {
 	initialized  bool
 }
 
+var (
+	topicCreationFailed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "topic_creation_failed_total",
+		Namespace: "strimzi_canary",
+		Help:      "Total number of errors while creating the canary topic",
+	}, []string{"topic"})
+
+	describeClusterError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "topic_describe_cluster_error_total",
+		Namespace: "strimzi_canary",
+		Help:      "Total number of errors while describing cluster",
+	}, nil)
+
+	describeTopicError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "topic_describe_error_total",
+		Namespace: "strimzi_canary",
+		Help:      "Total number of errors while getting canary topic metadata",
+	}, []string{"topic"})
+
+	alterTopicError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "topic_alter_error_total",
+		Namespace: "strimzi_canary",
+		Help:      "Total number of errors while altering canary topic",
+	}, []string{"topic"})
+)
+
 // ErrExpectedClusterSize defines the error raised when the expected cluster size is not met
 type ErrExpectedClusterSize struct{}
 
@@ -43,8 +71,7 @@ func (e *ErrExpectedClusterSize) Error() string {
 func NewTopicService(canaryConfig *config.CanaryConfig, client sarama.Client) *TopicService {
 	admin, err := sarama.NewClusterAdminFromClient(client)
 	if err != nil {
-		glog.Errorf("Error creating the Sarama cluster admin: %v", err)
-		panic(err)
+		glog.Fatalf("Error creating the Sarama cluster admin: %v", err)
 	}
 	ts := TopicService{
 		canaryConfig: canaryConfig,
@@ -73,12 +100,17 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 	// on creation or cluster scale up/down when topic already exists
 	brokers, _, err := ts.admin.DescribeCluster()
 	if err != nil {
+		describeClusterError.With(nil).Inc()
 		glog.Errorf("Error describing cluster: %v", err)
 		return result, err
 	}
 
 	metadata, err := ts.admin.DescribeTopics([]string{ts.canaryConfig.Topic})
 	if err != nil {
+		labels := prometheus.Labels{
+			"topic": ts.canaryConfig.Topic,
+		}
+		describeTopicError.With(labels).Inc()
 		glog.Errorf("Error retrieving metadata for topic %s: %v", ts.canaryConfig.Topic, err)
 		return result, err
 	}
@@ -92,6 +124,10 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 		if ts.isDynamicReassignmentEnabled() || ts.canaryConfig.ExpectedClusterSize == len(brokers) {
 
 			if result.Assignments, err = ts.createTopic(brokers); err != nil {
+				labels := prometheus.Labels{
+					"topic": topicMetadata.Name,
+				}
+				topicCreationFailed.With(labels).Inc()
 				glog.Errorf("Error creating topic %s: %v", topicMetadata.Name, err)
 				return result, err
 			}
@@ -115,6 +151,10 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 			glog.Infof("Going to alter topic and reassigning partitions if needed")
 			result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
 			if result.Assignments, err = ts.alterTopic(len(topicMetadata.Partitions), brokers); err != nil {
+				labels := prometheus.Labels{
+					"topic": topicMetadata.Name,
+				}
+				alterTopicError.With(labels).Inc()
 				glog.Errorf("Error altering topic %s: %v", topicMetadata.Name, err)
 				return result, err
 			}

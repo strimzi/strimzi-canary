@@ -64,8 +64,7 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 
 	consumerGroup, err := sarama.NewConsumerGroupFromClient(canaryConfig.ConsumerGroupID, client)
 	if err != nil {
-		glog.Errorf("Error creating the Sarama consumer: %v", err)
-		panic(err)
+		glog.Fatalf("Error creating the Sarama consumer: %v", err)
 	}
 	cs := ConsumerService{
 		canaryConfig:  canaryConfig,

@@ -15,10 +15,20 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
 	"github.com/strimzi/strimzi-canary/internal/servers"
 	"github.com/strimzi/strimzi-canary/internal/services"
 	"github.com/strimzi/strimzi-canary/internal/workers"
+)
+
+var (
+	clientCreationFailed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "client_creation_error_total",
+		Namespace: "strimzi_canary",
+		Help:      "Total number of errors while creating Sarama client",
+	}, nil)
 )
 
 func main() {
@@ -90,6 +100,7 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 			glog.Errorf("Error connecting to the Kafka cluster after %d retries: %v", canaryConfig.BootstrapBackoffMaxAttempts, backoffErr)
 			return nil, backoffErr
 		}
+		clientCreationFailed.With(nil).Inc()
 		glog.Warningf("Error creating new Sarama client, retrying in %d ms: %v", delay.Milliseconds(), clientErr)
 		time.Sleep(delay)
 	}

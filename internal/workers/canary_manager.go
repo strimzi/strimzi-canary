@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
 	"github.com/strimzi/strimzi-canary/internal/services"
 )
@@ -24,6 +26,14 @@ type CanaryManager struct {
 	stop            chan struct{}
 	syncStop        sync.WaitGroup
 }
+
+var (
+	expectedClusterSizeError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "expected_cluster_size_error_total",
+		Namespace: "strimzi_canary",
+		Help:      "Total number of errors while waiting the Kafka cluster having the expected size",
+	}, nil)
+)
 
 // NewCanaryManager returns an instance of the cananry manager worker
 func NewCanaryManager(canaryConfig *config.CanaryConfig, topicService *services.TopicService, producerService *services.ProducerService, consumerService *services.ConsumerService) Worker {
@@ -59,11 +69,11 @@ func (cm *CanaryManager) Start() {
 			if backoffErr != nil {
 				glog.Fatalf("Max attempts waiting for the expected cluster size: %v", e)
 			}
+			expectedClusterSizeError.With(nil).Inc()
 			glog.Warningf("Error on expected cluster size. Retrying in %d ms", delay.Milliseconds())
 			time.Sleep(delay)
 		} else {
-			glog.Errorf("Error starting manager: %v", err)
-			panic(err)
+			glog.Fatalf("Error starting manager: %v", err)
 		}
 	}
 
