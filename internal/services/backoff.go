@@ -7,7 +7,6 @@
 package services
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -32,11 +31,11 @@ type MaxAttemptsExceeded struct{}
 type BackoffDelayOverflow struct{}
 
 func (e *MaxAttemptsExceeded) Error() string {
-	return fmt.Sprintf("Maximum number of attempts exceeded")
+	return "Maximum number of attempts exceeded"
 }
 
 func (e *BackoffDelayOverflow) Error() string {
-	return fmt.Sprintf("Overflow on the computed backoff delay")
+	return "Overflow on the computed backoff delay"
 }
 
 // NewBackoff returns an instance of a Backoff struct
