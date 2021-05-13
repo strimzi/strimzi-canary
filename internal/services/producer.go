@@ -32,6 +32,12 @@ var (
 
 	// it's defined when the service is created because buckets are configurable
 	recordsProducedLatency *prometheus.HistogramVec
+
+	refreshMetadataError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "producer_refresh_metadata_error_total",
+		Namespace: "strimzi_canary",
+		Help:      "Total number of errors while refreshing producer metadata",
+	}, []string{"clientid"})
 )
 
 // ProducerService defines the service for producing messages
@@ -54,8 +60,7 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 
 	producer, err := sarama.NewSyncProducerFromClient(client)
 	if err != nil {
-		glog.Errorf("Error creating the Sarama sync producer: %v", err)
-		panic(err)
+		glog.Fatalf("Error creating the Sarama sync producer: %v", err)
 	}
 	ps := ProducerService{
 		canaryConfig: canaryConfig,
@@ -99,6 +104,10 @@ func (ps *ProducerService) Send(partitionsAssignments map[int32][]int32) {
 func (ps *ProducerService) Refresh() {
 	glog.Infof("Producer refreshing metadata")
 	if err := ps.client.RefreshMetadata(ps.canaryConfig.Topic); err != nil {
+		labels := prometheus.Labels{
+			"clientid": ps.canaryConfig.ClientID,
+		}
+		refreshMetadataError.With(labels).Inc()
 		glog.Errorf("Errors producer refreshing metadata: %v", err)
 	}
 }

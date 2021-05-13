@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 const (
@@ -119,7 +121,7 @@ func latencyBuckets(bucketsConfig string) []float64 {
 	for i := 0; i < len(sBuckets); i++ {
 		f, err := strconv.ParseFloat(sBuckets[i], 64)
 		if err != nil {
-			panic(err)
+			glog.Fatalf("Error parsing buckets configuration for %s: %v", bucketsConfig, err)
 		}
 		fBuckets[i] = f
 	}
