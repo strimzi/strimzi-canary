@@ -7,7 +7,6 @@
 package services
 
 import (
-	"fmt"
 	"sort"
 	"strconv"
 	"time"
@@ -37,7 +36,7 @@ type TopicService struct {
 type ErrExpectedClusterSize struct{}
 
 func (e *ErrExpectedClusterSize) Error() string {
-	return fmt.Sprintf("Current cluster size differs from the expected size")
+	return "Current cluster size differs from the expected size"
 }
 
 // NewTopicService returns an instance of TopicService
