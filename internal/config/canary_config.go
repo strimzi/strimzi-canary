@@ -25,13 +25,17 @@ const (
 	ReconcileIntervalEnvVar           = "RECONCILE_INTERVAL_MS"
 	ClientIDEnvVar                    = "CLIENT_ID"
 	ConsumerGroupIDEnvVar             = "CONSUMER_GROUP_ID"
-	TLSEnabledEnvVar                  = "TLS_ENABLED"
 	ProducerLatencyBucketsEnvVar      = "PRODUCER_LATENCY_BUCKETS"
 	EndToEndLatencyBucketsEnvVar      = "ENDTOEND_LATENCY_BUCKETS"
 	ExpectedClusterSizeEnvVar         = "EXPECTED_CLUSTER_SIZE"
 	KafkaVersionEnvVar                = "KAFKA_VERSION"
 	SaramaLogEnabledEnvVar            = "SARAMA_LOG_ENABLED"
 	VerbosityLogLevelEnvVar           = "VERBOSITY_LOG_LEVEL"
+	TLSEnabledEnvVar                  = "TLS_ENABLED"
+	TLSCACertEnvVar                   = "TLS_CA_CERT"
+	TLSClientCertEnvVar               = "TLS_CLIENT_CERT"
+	TLSClientKeyEnvVar                = "TLS_CLIENT_KEY"
+	TLSInsecureSkipVerifyEnvVar       = "TLS_INSECURE_SKIP_VERIFY"
 
 	// default values for environment variables
 	BootstrapServersDefault            = "localhost:9092"
@@ -41,13 +45,17 @@ const (
 	ReconcileIntervalDefault           = 30000
 	ClientIDDefault                    = "strimzi-canary-client"
 	ConsumerGroupIDDefault             = "strimzi-canary-group"
-	TLSEnabledDefault                  = false
 	ProducerLatencyBucketsDefault      = "100,200,400,800,1600"
 	EndToEndLatencyBucketsDefault      = "100,200,400,800,1600"
 	ExpectedClusterSizeDefault         = -1 // "dynamic" reassignment is enabled
 	KafkaVersionDefault                = "2.7.0"
 	SaramaLogEnabledDefault            = false
 	VerbosityLogLevelDefault           = 0 // default 0 = INFO, 1 = DEBUG, 2 = TRACE
+	TLSEnabledDefault                  = false
+	TLSCACertDefault                   = ""
+	TLSClientCertDefault               = ""
+	TLSClientKeyDefault                = ""
+	TLSInsecureSkipVerifyDefault       = false
 )
 
 // CanaryConfig defines the canary tool configuration
@@ -59,13 +67,17 @@ type CanaryConfig struct {
 	ReconcileInterval           time.Duration
 	ClientID                    string
 	ConsumerGroupID             string
-	TLSEnabled                  bool
 	ProducerLatencyBuckets      []float64
 	EndToEndLatencyBuckets      []float64
 	ExpectedClusterSize         int
 	KafkaVersion                string
 	SaramaLogEnabled            bool
 	VerbosityLogLevel           int
+	TLSEnabled                  bool
+	TLSCACert                   string
+	TLSClientCert               string
+	TLSClientKey                string
+	TLSInsecureSkipVerify       bool
 }
 
 // NewCanaryConfig returns an configuration instance from environment variables
@@ -78,13 +90,17 @@ func NewCanaryConfig() *CanaryConfig {
 		ReconcileInterval:           time.Duration(lookupIntEnv(ReconcileIntervalEnvVar, ReconcileIntervalDefault)),
 		ClientID:                    lookupStringEnv(ClientIDEnvVar, ClientIDDefault),
 		ConsumerGroupID:             lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
-		TLSEnabled:                  lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
 		ProducerLatencyBuckets:      latencyBuckets(lookupStringEnv(ProducerLatencyBucketsEnvVar, ProducerLatencyBucketsDefault)),
 		EndToEndLatencyBuckets:      latencyBuckets(lookupStringEnv(EndToEndLatencyBucketsEnvVar, EndToEndLatencyBucketsDefault)),
 		ExpectedClusterSize:         lookupIntEnv(ExpectedClusterSizeEnvVar, ExpectedClusterSizeDefault),
 		KafkaVersion:                lookupStringEnv(KafkaVersionEnvVar, KafkaVersionDefault),
 		SaramaLogEnabled:            lookupBoolEnv(SaramaLogEnabledEnvVar, SaramaLogEnabledDefault),
 		VerbosityLogLevel:           lookupIntEnv(VerbosityLogLevelEnvVar, VerbosityLogLevelDefault),
+		TLSEnabled:                  lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
+		TLSCACert:                   lookupStringEnv(TLSCACertEnvVar, TLSCACertDefault),
+		TLSClientCert:               lookupStringEnv(TLSClientCertEnvVar, TLSClientCertDefault),
+		TLSClientKey:                lookupStringEnv(TLSClientKeyEnvVar, TLSClientKeyDefault),
+		TLSInsecureSkipVerify:       lookupBoolEnv(TLSInsecureSkipVerifyEnvVar, TLSInsecureSkipVerifyDefault),
 	}
 	return &config
 }
@@ -129,9 +145,25 @@ func latencyBuckets(bucketsConfig string) []float64 {
 }
 
 func (c CanaryConfig) String() string {
+
+	// just using placeholders for certs/keys (content or paths)
+	TLSCACert := ""
+	if c.TLSCACert != "" {
+		TLSCACert = "[CA cert]"
+	}
+	TLSClientCert := ""
+	if c.TLSClientCert != "" {
+		TLSClientCert = "[Client cert]"
+	}
+	TLSClientKey := ""
+	if c.TLSClientKey != "" {
+		TLSClientKey = "[Client key]"
+	}
+
 	return fmt.Sprintf("{BootstrapServers:%s, BootstrapBackoffMaxAttempts:%d, BootstrapBackoffScale:%d, Topic:%s, ReconcileInterval:%d ms, "+
-		"ClientID:%s, ConsumerGroupID:%s, TLSEnabled:%t, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d, KafkaVersion:%s,"+
-		"SaramaLogEnabled:%t, VerbosityLogLevel:%d}",
+		"ClientID:%s, ConsumerGroupID:%s, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d, KafkaVersion:%s,"+
+		"SaramaLogEnabled:%t, VerbosityLogLevel:%d, TLSEnabled:%t, TLSCACert:%s, TLSClientCert:%s, TLSClientKey:%s, TLSInsecureSkipVerify:%t}",
 		c.BootstrapServers, c.BootstrapBackoffMaxAttempts, c.BootstrapBackoffScale, c.Topic, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
-		c.TLSEnabled, c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion, c.SaramaLogEnabled, c.VerbosityLogLevel)
+		c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion, c.SaramaLogEnabled, c.VerbosityLogLevel,
+		c.TLSEnabled, TLSCACert, TLSClientCert, TLSClientKey, c.TLSInsecureSkipVerify)
 }
