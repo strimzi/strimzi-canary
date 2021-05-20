@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
+	"github.com/strimzi/strimzi-canary/internal/security"
 	"github.com/strimzi/strimzi-canary/internal/servers"
 	"github.com/strimzi/strimzi-canary/internal/services"
 	"github.com/strimzi/strimzi-canary/internal/workers"
@@ -87,6 +88,13 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 
 	if canaryConfig.SaramaLogEnabled {
 		sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
+	}
+
+	if canaryConfig.TLSEnabled {
+		config.Net.TLS.Enable = true
+		if config.Net.TLS.Config, err = security.NewTLSConfig(canaryConfig); err != nil {
+			glog.Fatalf("Error configuring TLS: %v", err)
+		}
 	}
 
 	backoff := services.NewBackoff(canaryConfig.BootstrapBackoffMaxAttempts, canaryConfig.BootstrapBackoffScale*time.Millisecond, services.MaxDefault)
