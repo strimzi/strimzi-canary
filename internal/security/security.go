@@ -19,10 +19,20 @@ import (
 func NewTLSConfig(canaryConfig *config.CanaryConfig) (*tls.Config, error) {
 	tlsConfig := &tls.Config{}
 
+	var e error
+	// with TLS enabled, the System certs pool is used by default but adding the CA certificate if provided
+	if tlsConfig.RootCAs, e = x509.SystemCertPool(); e != nil {
+		glog.Infof("Error on setting the System certs pool as root CAs: %v", e)
+	}
+
 	if canaryConfig.TLSCACert != "" {
 		if caCert, err := loadCertKey(config.TLSCACertEnvVar, canaryConfig.TLSCACert); err == nil {
-			tlsConfig.RootCAs = x509.NewCertPool()
-			tlsConfig.RootCAs.AppendCertsFromPEM(caCert)
+			if tlsConfig.RootCAs == nil {
+				tlsConfig.RootCAs = x509.NewCertPool()
+			}
+			if !tlsConfig.RootCAs.AppendCertsFromPEM(caCert) {
+				return nil, err
+			}
 		} else {
 			return nil, err
 		}

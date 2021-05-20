@@ -91,9 +91,6 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 	}
 
 	if canaryConfig.TLSEnabled {
-		if canaryConfig.TLSCACert == "" {
-			glog.Fatalf("TLS enabled but the CA certificate is not provided")
-		}
 		config.Net.TLS.Enable = true
 		if config.Net.TLS.Config, err = security.NewTLSConfig(canaryConfig); err != nil {
 			glog.Fatalf("Error configuring TLS: %v", err)
