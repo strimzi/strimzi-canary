@@ -173,8 +173,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 func (ts *TopicService) Close() {
 	glog.Infof("Closing topic service")
 
-	err := ts.admin.Close()
-	if err != nil {
+	if err := ts.admin.Close(); err != nil {
 		glog.Fatalf("Error closing the Sarama cluster admin: %v", err)
 	}
 	glog.Infof("Topic service closed")
@@ -214,8 +213,7 @@ func (ts *TopicService) alterTopic(currentPartitions int, brokers []*sarama.Brok
 		// when replication factor is less than 3 because brokers are not 3 yet (see replicationFactor := min(brokersNumber, 3)),
 		// it's not possible to create the new partitions directly with a replication factor higher than the current ones.
 		// So first alter the assignment of current partitions with new replicas (higher replication factor)
-		err = ts.alterAssignments(assignments[:currentPartitions])
-		if err == nil {
+		if err = ts.alterAssignments(assignments[:currentPartitions]); err == nil {
 			// passing the assigments just for the partitions that needs to be created
 			err = ts.admin.CreatePartitions(ts.canaryConfig.Topic, int32(brokersNumber), assignments[currentPartitions:], false)
 		}
@@ -279,8 +277,7 @@ func (ts *TopicService) currentAssignments(topicMetadata *sarama.TopicMetadata) 
 // After the request for the replica assignement, it run a loop for checking if the reassignment is still ongoing
 // It returns when the reassignment is done or there is an error
 func (ts *TopicService) alterAssignments(assignments [][]int32) error {
-	err := ts.admin.AlterPartitionReassignments(ts.canaryConfig.Topic, assignments)
-	if err != nil {
+	if err := ts.admin.AlterPartitionReassignments(ts.canaryConfig.Topic, assignments); err != nil {
 		return err
 	}
 
