@@ -49,7 +49,7 @@ func main() {
 	httpServer.Start()
 
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGKILL)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	client, err := newClient(canaryConfig)
 	if err != nil {
