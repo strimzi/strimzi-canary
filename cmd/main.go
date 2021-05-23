@@ -63,10 +63,8 @@ func main() {
 	canaryManager := workers.NewCanaryManager(canaryConfig, topicService, producerService, consumerService)
 	canaryManager.Start()
 
-	select {
-	case sig := <-signals:
-		glog.Infof("Got signal: %v", sig)
-	}
+	sig := <-signals
+	glog.Infof("Got signal: %v", sig)
 	canaryManager.Stop()
 	httpServer.Stop()
 
