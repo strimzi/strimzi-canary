@@ -148,6 +148,7 @@ func (cs *ConsumerService) wait(timeout time.Duration) bool {
 // Close closes the underneath Sarama consumer group instance
 func (cs *ConsumerService) Close() {
 	glog.Infof("Closing consumer")
+	cs.cancel()
 	err := cs.consumerGroup.Close()
 	if err != nil {
 		glog.Fatalf("Error closing the Sarama consumer: %v", err)
