@@ -43,7 +43,7 @@ func TestMetricServerContentUpdating(t *testing.T) {
 		t.Errorf("No correct data produced")
 	}
 	// test  has to wait for 30 second before next round of data producing is finished.
-
+	//TODO currently seems that execution fail due to canary being unable to update metric
 	time.Sleep(time.Second * 31)
 	resp2, _ := http.Get("http://localhost:8080/metrics")
 	body2, _ := ioutil.ReadAll(resp2.Body)
