@@ -85,7 +85,7 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 	config.Producer.RequiredAcks = sarama.WaitForAll
 
 	if canaryConfig.SaramaLogEnabled {
-		sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
+		sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags|log.LUTC)
 	}
 
 	if canaryConfig.TLSEnabled {
