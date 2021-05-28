@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: canary-metrics
+  labels:
+    app: strimzi
+spec:
+  selector:
+    matchLabels:
+      strimzi.io/kind: Canary
+  namespaceSelector:
+    matchNames:
+      - my-kafka
+  podMetricsEndpoints:
+  - path: /metrics
+    port: rest-api
