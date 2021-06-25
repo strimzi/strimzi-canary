@@ -15,28 +15,23 @@ import (
 
 func createCanary( containerKafkaPort string ) {
 	// get canary configuration
+	println(containerKafkaPort)
 	canaryConfig := config.NewCanaryConfig()
-	canaryConfig.BootstrapServers = containerKafkaPort
+	//canaryConfig.BootstrapServers = containerKafkaPort
 
 	log.Printf("Starting Strimzi canary tool for testing with config: %+v\n", canaryConfig)
-	//metricsServer := servers.NewMetricsServer()
-	//metricsServer.Start()
-
 	metricsServer := servers.NewHttpServer()
 	metricsServer.Start()
-
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGKILL)
 
 	client := newClient(canaryConfig)
-
 	topicService := services.NewTopicService(canaryConfig, client)
 	producerService := services.NewProducerService(canaryConfig, client)
 	consumerService := services.NewConsumerService(canaryConfig, client)
 
 	canaryManager := workers.NewCanaryManager(canaryConfig, topicService, producerService, consumerService)
 	canaryManager.Start()
-
 	select {
 	case sig := <-signals:
 		log.Printf("Got signal: %v\n", sig)
