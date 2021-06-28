@@ -2,9 +2,9 @@ package test
 
 import (
 	"github.com/strimzi/strimzi-canary/test/container_manager"
-	"testing"
-	"time"
+	"log"
 	"os"
+	"testing"
 )
 
 // global variables for accessing container information
@@ -19,12 +19,11 @@ func TestMain(m *testing.M) {
 	// starting of network for default kafka and zookeeper ports 9092, 2182
 	controller.StartDefaultZookeeperKafkaNetwork()
 	// starting kafka zookeeper on testContainer with Dynamic ports
-	controller.StartContainer()
 	// staring canary as go routine
+	log.Println("startujem canary")
 	controller.StartCanary()
-
 	// exercise, verify: running all tests
-	time.Sleep(time.Second * 5)
+	log.Println("startujem testy")
 	code := m.Run()
 
 	// teardown

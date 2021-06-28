@@ -16,7 +16,7 @@ const (
 	httpUrlPrefix = "http://localhost:8080"
 	metricsEndpoint = "/metrics"
 	canaryTopicName = "__strimzi_canary"
-	kafkaVersion = "2.6.0"
+	httpServerUpdatingFrequency = 30
 )
 
 func TestCanaryTopicLiveliness(t *testing.T) {
@@ -33,32 +33,10 @@ func TestCanaryTopicLiveliness(t *testing.T) {
 	if err != nil {
 		t.Errorf("some error: %s", err.Error())
 	}
-
 	fmt.Println(string(messsage.Value))
 
 
 }
-
-
-func TestCanaryTopicPresence(t *testing.T) {
-	t.Skip()
-	fmt.Println("TestCanaryTopicPresence")
-	var command = []string{
-		"./opt/kafka_2.13-"+ kafkaVersion +"/bin/kafka-topics.sh",
-		"--describe", "--zookeeper",
-		"localhost:2181",
-		"--topic",
-		canaryTopicName,
-	}
-	var res, err = controller.Execute(command)
-	if err != nil  {
-		t.Errorf("failed to find topic %s, due to %s", canaryTopicName, err.Error())
-	}
-	if res != 0 {
-		t.Errorf("topic %s doesn't exist", canaryTopicName)
-	}
-}
-
 
 func TestEndpointsAvailability(t *testing.T) {
 	fmt.Println("TestEndpointsAvailability")
@@ -82,7 +60,7 @@ func TestEndpointsAvailability(t *testing.T) {
 		wantResponseStatus := input.responseCode
 		gotResponseStatus := resp.StatusCode
 		if wantResponseStatus != gotResponseStatus {
-			t.Errorf("expected response code: %d obtained: %d",wantResponseStatus,gotResponseStatus  )
+			t.Errorf("endpoint: %s expected response code: %d obtained: %d" ,completeUrl,wantResponseStatus,gotResponseStatus  )
 		}
 	}
 }
@@ -98,17 +76,16 @@ func TestMetricServerContentUpdating(t *testing.T) {
 		t.Errorf("No correct data produced")
 	}
 	// test  has to wait for 30 second before next round of data producing is finished.
-	time.Sleep(time.Second * 31)
+	time.Sleep(time.Second * (httpServerUpdatingFrequency + 1))
 	resp2, _ := http.Get(httpUrlPrefix + metricsEndpoint)
 	body2, _ := ioutil.ReadAll(resp2.Body)
-	time.Sleep(time.Second * 250)
 	sb2 := string(body2)
 	// got2 stores value produced after 30 second from recording first value
 	got2 := parseCountFromMetrics(sb2)
 	if got2 <= got1{
 		log.Println(got2)
 		log.Println(got1)
-		t.Errorf("Data are not updated correctly on service")
+		t.Errorf("Data are not updated within requested time period %d on endpoint %s", httpServerUpdatingFrequency, metricsEndpoint)
 	}
 	controller.StopDefaultZookeeperKafkaNetwork()
 }

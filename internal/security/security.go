@@ -22,7 +22,7 @@ func NewTLSConfig(canaryConfig *config.CanaryConfig) (*tls.Config, error) {
 	var e error
 	// with TLS enabled, the System certs pool is used by default but adding the CA certificate if provided
 	if tlsConfig.RootCAs, e = x509.SystemCertPool(); e != nil {
-		glog.Infof("Error on setting the System certs pool as root CAs: %v", e)
+		glog.Infof("Error n setting the System certs pool as root CAs: %v", e)
 	}
 
 	if canaryConfig.TLSCACert != "" {

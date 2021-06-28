@@ -13,9 +13,8 @@ import (
 	"github.com/strimzi/strimzi-canary/internal/workers"
 )
 
-func createCanary( containerKafkaPort string ) {
+func createCanary() {
 	// get canary configuration
-	println(containerKafkaPort)
 	canaryConfig := config.NewCanaryConfig()
 	//canaryConfig.BootstrapServers = containerKafkaPort
 
