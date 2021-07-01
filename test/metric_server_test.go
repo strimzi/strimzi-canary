@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"fmt"
 	"github.com/segmentio/kafka-go"
 	"io/ioutil"
 	"log"
@@ -13,33 +12,46 @@ import (
 )
 
 const (
-	httpUrlPrefix = "http://localhost:8080"
-	metricsEndpoint = "/metrics"
-	canaryTopicName = "__strimzi_canary"
-	httpServerUpdatingFrequency = 30
+	httpUrlPrefix                   = "http://localhost:8080"
+	metricsEndpoint                 = "/metrics"
+	canaryTopicName                 = "__strimzi_canary"
+	metricServerUpdateTimeInSeconds = 30
 )
 
 func TestCanaryTopicLiveliness(t *testing.T) {
-	fmt.Println("TestCanaryTopicLiveliness")
-	topic := canaryTopicName
-	partition := 0
-	// connect to kafka broker
-	//conn, err := kafka.DialLeader(context.Background(), "tcp", "localhost:" + controller.GetKafkaHostPort(), topic, partition)
-	conn, err := kafka.DialLeader(context.Background(), "tcp", "localhost:9092", topic, partition)
-	if err != nil { log.Fatal("failed to dial leader:", err) }
-	// read single message
-	fmt.Println("waiting for message")
-	messsage, err := conn.ReadMessage(10)
-	if err != nil {
-		t.Errorf("some error: %s", err.Error())
-	}
-	fmt.Println(string(messsage.Value))
+	log.Println("TestCanaryTopicLiveliness test starts")
 
+	timeout := time.After(2 * time.Minute)
+	done := make(chan bool)
+
+	// test itself.
+	go func() {
+		topic := canaryTopicName
+		partition := 0
+		// connect to kafka broker
+		conn, err := kafka.DialLeader(context.Background(), "tcp", "localhost:9092", topic, partition)
+		if err != nil { log.Fatal("failed to dial leader:", err) }
+		// read single message
+		log.Println("waiting for message from kafka")
+		_, err = conn.ReadMessage(10)
+		if err != nil {
+			t.Errorf("error when waiting for message from %s: %s", canaryTopicName , err.Error())
+		}
+		done <- true
+
+	}()
+
+	select {
+	case <-timeout:
+		t.Error("Test didn't finish in time")
+	case <-done:
+		log.Println("message successfully received")
+	}
 
 }
 
 func TestEndpointsAvailability(t *testing.T) {
-	fmt.Println("TestEndpointsAvailability")
+	log.Println("TestEndpointsAvailability test starts")
 	var inputs = [...]struct{
 		endpoint string
 		responseCode int
@@ -51,7 +63,7 @@ func TestEndpointsAvailability(t *testing.T) {
 	}
 
 	for _, input := range inputs {
-		log.Println("endpoint:", input.endpoint   )
+
 		var completeUrl string = httpUrlPrefix + input.endpoint
 		resp, err := http.Get(completeUrl)
 		if err != nil {
@@ -62,11 +74,12 @@ func TestEndpointsAvailability(t *testing.T) {
 		if wantResponseStatus != gotResponseStatus {
 			t.Errorf("endpoint: %s expected response code: %d obtained: %d" ,completeUrl,wantResponseStatus,gotResponseStatus  )
 		}
+		log.Printf("endpoint:  %s, responded with expected status code %d\n", input.endpoint, input.responseCode)
 	}
 }
 
 func TestMetricServerContentUpdating(t *testing.T) {
-	fmt.Println("TestMetricServerContentUpdating")
+	log.Println("TestMetricServerContentUpdating test starts")
 	resp, _ := http.Get(httpUrlPrefix + metricsEndpoint)
 	body, _ := ioutil.ReadAll(resp.Body)
 	sb := string(body)
@@ -76,7 +89,7 @@ func TestMetricServerContentUpdating(t *testing.T) {
 		t.Errorf("No correct data produced")
 	}
 	// test  has to wait for 30 second before next round of data producing is finished.
-	time.Sleep(time.Second * (httpServerUpdatingFrequency + 1))
+	time.Sleep(time.Second * (metricServerUpdateTimeInSeconds + 1))
 	resp2, _ := http.Get(httpUrlPrefix + metricsEndpoint)
 	body2, _ := ioutil.ReadAll(resp2.Body)
 	sb2 := string(body2)
@@ -85,7 +98,7 @@ func TestMetricServerContentUpdating(t *testing.T) {
 	if got2 <= got1{
 		log.Println(got2)
 		log.Println(got1)
-		t.Errorf("Data are not updated within requested time period %d on endpoint %s", httpServerUpdatingFrequency, metricsEndpoint)
+		t.Errorf("Data are not updated within requested time period %d on endpoint %s", metricServerUpdateTimeInSeconds, metricsEndpoint)
 	}
 	controller.StopDefaultZookeeperKafkaNetwork()
 }

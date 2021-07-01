@@ -18,12 +18,10 @@ func TestMain(m *testing.M) {
 	controller = container_manager.CreateManager()
 	// starting of network for default kafka and zookeeper ports 9092, 2182
 	controller.StartDefaultZookeeperKafkaNetwork()
-	// starting kafka zookeeper on testContainer with Dynamic ports
-	// staring canary as go routine
-	log.Println("startujem canary")
+	// starting canary as go routine.
 	controller.StartCanary()
 	// exercise, verify: running all tests
-	log.Println("startujem testy")
+	log.Println("Starting base tests")
 	code := m.Run()
 
 	// teardown
