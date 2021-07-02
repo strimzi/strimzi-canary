@@ -47,7 +47,7 @@ func (ms *HttpServer) Start() {
 func (ms *HttpServer) Stop() {
 	glog.Infof("Stopping HTTP server")
 
-	ctx, cancel := conext.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	ms.httpServer.Shutdown(ctx)
 
