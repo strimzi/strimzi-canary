@@ -1,15 +1,19 @@
 package test
 
 import (
-	"context"
 	"github.com/segmentio/kafka-go"
 	"io/ioutil"
+	"context"
 	"log"
 	"net/http"
-	"regexp"
 	"testing"
 	"time"
 )
+
+/* TODO: current version doesn't use dynamic port allocation due to Canary not running properly on Kafka mapped to any other port than default  9092
++ what is later propagated as series of unwanted behaviours, for example not having open port on 9092 ends in failed attempt to connect to this port despite other port being set in configuration
+*/
+
 
 const (
 	httpUrlPrefix                   = "http://localhost:8080"
@@ -18,25 +22,44 @@ const (
 	metricServerUpdateTimeInSeconds = 30
 )
 
+/* test checks for following:
+*  the presence of canary topic,
+*  liveliness of topic (messages being produced),
+*/
 func TestCanaryTopicLiveliness(t *testing.T) {
-	log.Println("TestCanaryTopicLiveliness test starts")
 
-	timeout := time.After(2 * time.Minute)
+	log.Println("TestCanaryTopic test starts")
+
+	// setting Up timeout
+	timeout := time.After(40 * time.Second)
 	done := make(chan bool)
 
 	// test itself.
 	go func() {
-		topic := canaryTopicName
+		// test topic presence
+		isPresent, err := isTopicPresent(canaryTopicName)
+		if err != nil {
+			t.Errorf("cannot connect to canary topic: %s due to error %s\n",canaryTopicName, err.Error()  )
+		}
+		if ! isPresent {
+			t.Errorf("%s topic doesn't exist", canaryTopicName)
+		}
+		log.Printf("%s topic is present\n", canaryTopicName)
+
+		// test topic liveliness
 		partition := 0
-		// connect to kafka broker
-		conn, err := kafka.DialLeader(context.Background(), "tcp", "localhost:9092", topic, partition)
-		if err != nil { log.Fatal("failed to dial leader:", err) }
+		conn, err := kafka.DialLeader(context.Background(), "tcp", "localhost:9092", canaryTopicName, partition)
+		if err != nil {
+			log.Fatal("failed to dial leader:", err)
+		}
 		// read single message
 		log.Println("waiting for message from kafka")
 		_, err = conn.ReadMessage(10)
 		if err != nil {
 			t.Errorf("error when waiting for message from %s: %s", canaryTopicName , err.Error())
 		}
+		log.Println("Canary produces messages")
+		// check expected format of topic
 		done <- true
 
 	}()
@@ -107,13 +130,3 @@ func TestMetricServerContentUpdating(t *testing.T) {
 
 
 
-// We are only interested in counter that is produced
-func parseCountFromMetrics( input string) string  {
-	regex, _ := regexp.Compile("(?m)^promhttp_metric_handler_requests_total.*(\\d+)$")
-	data := regex.FindStringSubmatch(input)
-	if len(data) > 1 {
-		return data[1]
-	}
-	return ""
-
-}

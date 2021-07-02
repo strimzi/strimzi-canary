@@ -17,7 +17,6 @@ type controller struct {
 }
 
 // constants for evaluating occupying of default ports for Kafka and Zookeeper
-
 func getTakenPorts() []string {
 	return []string{"2181", "9092"}
 }
@@ -59,8 +58,10 @@ func CreateManager() ContainerManager {
 
 func (c *controller) StartCanary() {
 	log.Println("starting canary")
+	// zookeeper may take extra seconds to start before canary
 	time.Sleep(time.Second * 5)
 	go createCanary()
+	// once canary starts it may take extra time tu spin up server
 	time.Sleep(time.Second * 5)
 }
 

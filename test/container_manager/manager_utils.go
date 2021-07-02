@@ -13,12 +13,10 @@ func checkPortAvailability(host string, requiredPorts []string) (string, error) 
 		timeout := time.Second
 		conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), timeout)
 		if err != nil {
-			log.Println("Connecting error:", err)
-			return port, err
+			log.Printf("Port %s is free\n", port)
 		}
 		if conn != nil {
-			defer conn.Close()
-			log.Println("Opened", net.JoinHostPort(host, port))
+			log.Println("Port used: ", net.JoinHostPort(host, port))
 		}
 	}
 	return  "", nil

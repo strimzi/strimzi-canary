@@ -37,9 +37,7 @@ func NewHttpServer() *HttpServer {
 
 // Start runs the HTTP server in its own go routine
 func (ms *HttpServer) Start() {
-
 	glog.Infof("Starting HTTP server")
-
 	go func() {
 		ms.httpServer.ListenAndServe()
 	}()

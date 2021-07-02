@@ -27,7 +27,7 @@ var (
 	}, nil)
 )
 
-
+// TODO goes against DRY principle, possible refactor of cmd/main to put more of code into none main module
 func createCanary() {
 	canaryConfig := config.NewCanaryConfig()
 
