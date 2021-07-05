@@ -119,7 +119,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 	if topicMetadata.Err == sarama.ErrUnknownTopicOrPartition {
 
 		// canary topic doesn't exist, going to create it
-		glog.V(1).Infof("The canary topic %s doesn't existn", topicMetadata.Name)
+		glog.V(1).Infof("The canary topic %s doesn't exist", topicMetadata.Name)
 		// topic is created if "dynamic" reassignment is enabled or the expected brokers are provided by the describe cluster
 		if ts.isDynamicReassignmentEnabled() || ts.canaryConfig.ExpectedClusterSize == len(brokers) {
 
