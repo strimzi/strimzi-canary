@@ -95,6 +95,12 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 		}
 	}
 
+	if canaryConfig.SASLMechanism != "" {
+		if err = security.SetAuthConfig(canaryConfig, config); err != nil {
+			glog.Fatalf("Error configuring SASL authentication: %v", err)
+		}
+	}
+
 	backoff := services.NewBackoff(canaryConfig.BootstrapBackoffMaxAttempts, canaryConfig.BootstrapBackoffScale*time.Millisecond, services.MaxDefault)
 	for {
 		client, clientErr := sarama.NewClient([]string{canaryConfig.BootstrapServers}, config)
