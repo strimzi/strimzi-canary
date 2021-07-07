@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Shopify/sarama"
 	"github.com/golang/glog"
 )
 
@@ -36,6 +37,9 @@ const (
 	TLSClientCertEnvVar               = "TLS_CLIENT_CERT"
 	TLSClientKeyEnvVar                = "TLS_CLIENT_KEY"
 	TLSInsecureSkipVerifyEnvVar       = "TLS_INSECURE_SKIP_VERIFY"
+	SASLMechanismEnvVar               = "SASL_MECHANISM"
+	SASLUserEnvVar                    = "SASL_USER"
+	SASLPasswordEnvVar                = "SASL_PASSWORD"
 
 	// default values for environment variables
 	BootstrapServersDefault            = "localhost:9092"
@@ -56,6 +60,9 @@ const (
 	TLSClientCertDefault               = ""
 	TLSClientKeyDefault                = ""
 	TLSInsecureSkipVerifyDefault       = false
+	SASLMechanismDefault               = ""
+	SASLUserDefault                    = ""
+	SASLPasswordDefault                = ""
 )
 
 // CanaryConfig defines the canary tool configuration
@@ -78,6 +85,9 @@ type CanaryConfig struct {
 	TLSClientCert               string
 	TLSClientKey                string
 	TLSInsecureSkipVerify       bool
+	SASLMechanism               string
+	SASLUser                    string
+	SASLPassword                string
 }
 
 // NewCanaryConfig returns an configuration instance from environment variables
@@ -101,6 +111,9 @@ func NewCanaryConfig() *CanaryConfig {
 		TLSClientCert:               lookupStringEnv(TLSClientCertEnvVar, TLSClientCertDefault),
 		TLSClientKey:                lookupStringEnv(TLSClientKeyEnvVar, TLSClientKeyDefault),
 		TLSInsecureSkipVerify:       lookupBoolEnv(TLSInsecureSkipVerifyEnvVar, TLSInsecureSkipVerifyDefault),
+		SASLMechanism:               lookupStringEnv(SASLMechanismEnvVar, SASLMechanismDefault),
+		SASLUser:                    lookupStringEnv(SASLUserEnvVar, SASLUserDefault),
+		SASLPassword:                lookupStringEnv(SASLPasswordEnvVar, SASLPasswordDefault),
 	}
 	return &config
 }
@@ -160,10 +173,24 @@ func (c CanaryConfig) String() string {
 		TLSClientKey = "[Client key]"
 	}
 
+	// is one of SASL mechanisms needing user/password is enabled, using placeholders for them
+	SASLUser := ""
+	SASLPassword := ""
+	if c.SASLMechanism == sarama.SASLTypePlaintext {
+		if c.SASLUser != "" {
+			SASLUser = "[SASL user]"
+		}
+
+		if c.SASLPassword != "" {
+			SASLPassword = "[SASL password]"
+		}
+	}
+
 	return fmt.Sprintf("{BootstrapServers:%s, BootstrapBackoffMaxAttempts:%d, BootstrapBackoffScale:%d, Topic:%s, ReconcileInterval:%d ms, "+
 		"ClientID:%s, ConsumerGroupID:%s, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d, KafkaVersion:%s,"+
-		"SaramaLogEnabled:%t, VerbosityLogLevel:%d, TLSEnabled:%t, TLSCACert:%s, TLSClientCert:%s, TLSClientKey:%s, TLSInsecureSkipVerify:%t}",
+		"SaramaLogEnabled:%t, VerbosityLogLevel:%d, TLSEnabled:%t, TLSCACert:%s, TLSClientCert:%s, TLSClientKey:%s, TLSInsecureSkipVerify:%t,"+
+		"SASLMechanism:%s, SASLUser:%s, SASLPassword:%s}",
 		c.BootstrapServers, c.BootstrapBackoffMaxAttempts, c.BootstrapBackoffScale, c.Topic, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
 		c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion, c.SaramaLogEnabled, c.VerbosityLogLevel,
-		c.TLSEnabled, TLSCACert, TLSClientCert, TLSClientKey, c.TLSInsecureSkipVerify)
+		c.TLSEnabled, TLSCACert, TLSClientCert, TLSClientKey, c.TLSInsecureSkipVerify, c.SASLMechanism, SASLUser, SASLPassword)
 }
