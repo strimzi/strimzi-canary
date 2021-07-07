@@ -123,7 +123,7 @@ func TestMetricServerContentUpdating(t *testing.T) {
 		log.Println(got1)
 		t.Errorf("Data are not updated within requested time period %d on endpoint %s", metricServerUpdateTimeInSeconds, metricsEndpoint)
 	}
-	controller.StopDefaultZookeeperKafkaNetwork()
+
 }
 
 
