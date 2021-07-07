@@ -25,6 +25,7 @@ func SetAuthConfig(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Confi
 			return errors.New("SASL password must be specified")
 		}
 		saramaConfig.Net.SASL.Enable = true
+		saramaConfig.Net.SASL.Version = sarama.SASLHandshakeV1
 		saramaConfig.Net.SASL.Mechanism = sarama.SASLMechanism(canaryConfig.SASLMechanism)
 		saramaConfig.Net.SASL.User = canaryConfig.SASLUser
 		saramaConfig.Net.SASL.Password = canaryConfig.SASLPassword
