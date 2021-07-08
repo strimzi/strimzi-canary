@@ -15,9 +15,9 @@ func parseCountFromMetrics( input string) string  {
 	return ""
 }
 
-func isTopicPresent(topicName string) (bool, error){
+func isTopicPresent(topicName string, kafkaServers string) (bool, error){
 	// get map of topics from metadata
-	conn, err := kafka.Dial("tcp", "localhost:9092")
+	conn, err := kafka.Dial("tcp", kafkaServers)
 	if err != nil {
 		return false, err
 	}

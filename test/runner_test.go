@@ -17,16 +17,16 @@ func TestMain(m *testing.M) {
 	// setting up manager
 	controller = container_manager.CreateManager()
 	// starting of network for default kafka and zookeeper ports 9092, 2182
-	controller.StartDefaultZookeeperKafkaNetwork()
+	controller.StartKafkaZookeeperContainers()
 
 	// teardown
 	// shutting down of test container is implicit
-	defer controller.StopDefaultZookeeperKafkaNetwork()
+	defer controller.StopKafkaZookeeperContainers()
 
 	// starting canary as go routine.
 	controller.StartCanary()
 	// exercise, verify: running all tests
-	log.Println("Starting base tests")
+	log.Println("Starting tests")
 	code := m.Run()
 
 	// returning exit code of testing

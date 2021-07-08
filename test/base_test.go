@@ -1,18 +1,14 @@
 package test
 
 import (
+	"context"
 	"github.com/segmentio/kafka-go"
 	"io/ioutil"
-	"context"
 	"log"
 	"net/http"
 	"testing"
 	"time"
 )
-
-/* TODO: current version doesn't use dynamic port allocation due to Canary not running properly on Kafka mapped to any other port than default  9092
-+ what is later propagated as series of unwanted behaviours, for example not having open port on 9092 ends in failed attempt to connect to this port despite other port being set in configuration
-*/
 
 
 const (
@@ -20,6 +16,7 @@ const (
 	metricsEndpoint                 = "/metrics"
 	canaryTopicName                 = "__strimzi_canary"
 	metricServerUpdateTimeInSeconds = 30
+	kafkaServer = "localhost:9092"
 )
 
 /* test checks for following:
@@ -27,17 +24,16 @@ const (
 *  liveliness of topic (messages being produced),
 */
 func TestCanaryTopicLiveliness(t *testing.T) {
-
 	log.Println("TestCanaryTopic test starts")
 
-	// setting Up timeout
+	// setting up timeout
 	timeout := time.After(40 * time.Second)
 	done := make(chan bool)
 
 	// test itself.
 	go func() {
 		// test topic presence
-		isPresent, err := isTopicPresent(canaryTopicName)
+		isPresent, err := isTopicPresent(canaryTopicName, kafkaServer)
 		if err != nil {
 			t.Errorf("cannot connect to canary topic: %s due to error %s\n",canaryTopicName, err.Error()  )
 		}
@@ -58,8 +54,7 @@ func TestCanaryTopicLiveliness(t *testing.T) {
 		if err != nil {
 			t.Errorf("error when waiting for message from %s: %s", canaryTopicName , err.Error())
 		}
-		log.Println("Canary produces messages")
-		// check expected format of topic
+		log.Println("waiting for next message")
 		done <- true
 
 	}()
@@ -68,16 +63,16 @@ func TestCanaryTopicLiveliness(t *testing.T) {
 	case <-timeout:
 		t.Error("Test didn't finish in time")
 	case <-done:
-		log.Println("message successfully received")
+		log.Println("message received")
 	}
 
 }
 
 func TestEndpointsAvailability(t *testing.T) {
 	log.Println("TestEndpointsAvailability test starts")
-	var inputs = [...]struct{
-		endpoint string
-		responseCode int
+	var testInputs = [...]struct{
+		endpoint           string
+		expectedStatusCode int
 	}{
 		{metricsEndpoint, 200},
 		{"/liveness", 200},
@@ -85,42 +80,40 @@ func TestEndpointsAvailability(t *testing.T) {
 		{"/invalid", 404},
 	}
 
-	for _, input := range inputs {
-
-		var completeUrl string = httpUrlPrefix + input.endpoint
+	for _, testInput := range testInputs {
+		var completeUrl = httpUrlPrefix + testInput.endpoint
 		resp, err := http.Get(completeUrl)
 		if err != nil {
 			t.Errorf("Http server unreachable for url: %s",completeUrl  )
 		}
-		wantResponseStatus := input.responseCode
+
+		wantResponseStatus := testInput.expectedStatusCode
 		gotResponseStatus := resp.StatusCode
 		if wantResponseStatus != gotResponseStatus {
 			t.Errorf("endpoint: %s expected response code: %d obtained: %d" ,completeUrl,wantResponseStatus,gotResponseStatus  )
 		}
-		log.Printf("endpoint:  %s, responded with expected status code %d\n", input.endpoint, input.responseCode)
+		log.Printf("endpoint:  %s, responded with expected status code %d\n", testInput.endpoint, testInput.expectedStatusCode)
 	}
 }
 
 func TestMetricServerContentUpdating(t *testing.T) {
 	log.Println("TestMetricServerContentUpdating test starts")
+
 	resp, _ := http.Get(httpUrlPrefix + metricsEndpoint)
 	body, _ := ioutil.ReadAll(resp.Body)
-	sb := string(body)
-	// we test whether number of result is increased  (got1 stores first produced value)
-	got1 := parseCountFromMetrics(sb)
-	if len(got1) < 1 {
-		t.Errorf("No correct data produced")
+	totalRequestCountT1 := parseCountFromMetrics(string(body))
+	if len(totalRequestCountT1) < 1 {
+		t.Errorf("Content of metric server is not updated as expected")
 	}
-	// test  has to wait for 30 second before next round of data producing is finished.
+
+	// test  has to wait for Defined time before next round of data producing is finished.
 	time.Sleep(time.Second * (metricServerUpdateTimeInSeconds + 1))
-	resp2, _ := http.Get(httpUrlPrefix + metricsEndpoint)
-	body2, _ := ioutil.ReadAll(resp2.Body)
-	sb2 := string(body2)
-	// got2 stores value produced after 30 second from recording first value
-	got2 := parseCountFromMetrics(sb2)
-	if got2 <= got1{
-		log.Println(got2)
-		log.Println(got1)
+	resp, _ = http.Get(httpUrlPrefix + metricsEndpoint)
+	body, _ = ioutil.ReadAll(resp.Body)
+
+	// totalRequestCountT2 stores value produced after defined number of seconds from obtaining totalRequestCountT1
+	totalRequestCountT2 := parseCountFromMetrics(string(body))
+	if totalRequestCountT2 <= totalRequestCountT1{
 		t.Errorf("Data are not updated within requested time period %d on endpoint %s", metricServerUpdateTimeInSeconds, metricsEndpoint)
 	}
 
