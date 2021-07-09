@@ -1,15 +1,16 @@
-package container_manager
+package service_manager
 
 import (
 	"context"
 	"github.com/testcontainers/testcontainers-go"
 	"log"
 	"os"
+	"os/exec"
 	"time"
 )
 
 
-type ContainerManager interface {
+type ServiceManager interface {
 	StartKafkaZookeeperContainers()
 	StopKafkaZookeeperContainers()
 	StartCanary()
@@ -25,6 +26,12 @@ type controller struct {
 }
 
 
+const (
+	pathToDockerComposeImage        = "/compose-kafka-zookeeper.yaml"
+	pathToMainMethod                = "../../cmd/main.go"
+)
+
+
 func (c *controller) setContext() {
 	c.ctx = context.Background()
 }
@@ -35,7 +42,7 @@ func (c *controller) StartKafkaZookeeperContainers() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	path := dir + "/compose-kafka-zookeeper.yaml"
+	path := dir + pathToDockerComposeImage
 	c.kafkaContainer = testcontainers.NewLocalDockerCompose([]string{path}, "someName")
 	c.kafkaContainer.WithCommand([]string{"up", "-d"}).Invoke()
 
@@ -48,15 +55,17 @@ func (c *controller) StopKafkaZookeeperContainers() {
 }
 
 
-func CreateManager() ContainerManager {
-	var cManipulation ContainerManager = &controller{}
+func CreateManager() ServiceManager {
+	var cManipulation ServiceManager = &controller{}
 	return cManipulation
 }
 
 
 func (c *controller) StartCanary() {
 	log.Println("starting canary")
-	go createCanary()
+	// Output is not necessary but
+	go exec.Command("go", "run",  pathToMainMethod ).Run()
+
 	// once canary starts it may take extra time to open endpoints
-	time.Sleep(time.Second * 1)
+	time.Sleep(time.Second * 10)
 }

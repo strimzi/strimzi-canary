@@ -1,7 +1,7 @@
-package test
+package base
 
 import (
-	"github.com/strimzi/strimzi-canary/test/container_manager"
+	"github.com/strimzi/strimzi-canary/test/service_manager"
 	"log"
 	"os"
 	"testing"
@@ -9,13 +9,16 @@ import (
 
 // global variables for accessing container information
 var (
-	controller container_manager.ContainerManager
+	controller service_manager.ServiceManager
 )
 
 func TestMain(m *testing.M) {
+
+
+
 	// setup
 	// setting up manager
-	controller = container_manager.CreateManager()
+	controller = service_manager.CreateManager()
 	// starting of network for default kafka and zookeeper ports 9092, 2182
 	controller.StartKafkaZookeeperContainers()
 
