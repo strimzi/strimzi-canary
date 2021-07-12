@@ -13,11 +13,6 @@ var (
 )
 
 func TestMain(m *testing.M) {
-
-
-
-	// setup
-	// setting up manager
 	controller = service_manager.CreateManager()
 	// starting of network for default kafka and zookeeper ports 9092, 2182
 	controller.StartKafkaZookeeperContainers()

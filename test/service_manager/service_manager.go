@@ -63,9 +63,7 @@ func CreateManager() ServiceManager {
 
 func (c *controller) StartCanary() {
 	log.Println("starting canary")
-	// Output is not necessary but
 	go exec.Command("go", "run",  pathToMainMethod ).Run()
-
 	// once canary starts it may take extra time to open endpoints
 	time.Sleep(time.Second * 10)
 }
