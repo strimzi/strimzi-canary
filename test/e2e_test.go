@@ -1,13 +1,13 @@
 // +build e2e
 
-package base
+package test
 
 import (
 	"github.com/Shopify/sarama"
-	"github.com/strimzi/strimzi-canary/test"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -26,7 +26,7 @@ const (
 *  liveliness of topic (messages being produced),
 */
 func TestCanaryTopicLiveliness(t *testing.T) {
-	log.Println("1TestCanaryTopic test startss")
+	log.Println("TestCanaryTopic test starts")
 
 	// setting up timeout
 	timeout := time.After(40 * time.Second)
@@ -39,24 +39,23 @@ func TestCanaryTopicLiveliness(t *testing.T) {
 		//kafka end point
 		brokers := []string{kafkaMainBroker}
 		//get broker
-		cluster, err := sarama.NewConsumer(brokers, config)
+		consumer, err := sarama.NewConsumer(brokers, config)
 
 		if err != nil {
-			t.Error(err.Error())
+			t.Fatalf(err.Error())
 		}
 		// get all topics
-		topics, err := cluster.Topics()
+		topics, err := consumer.Topics()
 		if err != nil {
-			t.Error(err.Error())
+			t.Fatalf(err.Error())
 		}
 
 
-		if !test.IsTopicPresent(canaryTopicName, topics) {
-			t.Errorf("%s is not present", canaryTopicName)
+		if !IsTopicPresent(canaryTopicName, topics) {
+			t.Fatalf("%s is not present", canaryTopicName)
 		}
 
 		// consume single message
-		consumer, _ := sarama.NewConsumer(brokers, nil)
 		partitionConsumer, _ := consumer.ConsumePartition(canaryTopicName, 0, 0)
 		msg := <-partitionConsumer.Messages()
 		log.Printf("Consumed: offset:%d  value:%v", msg.Offset, string(msg.Value))
@@ -66,7 +65,7 @@ func TestCanaryTopicLiveliness(t *testing.T) {
 
 	select {
 	case <-timeout:
-		t.Error("Test didn't finish in time due to message not being read in time")
+		t.Fatalf("Test didn't finish in time due to message not being read in time")
 	case <-testDone:
 		log.Println("message received")
 	}
@@ -75,6 +74,7 @@ func TestCanaryTopicLiveliness(t *testing.T) {
 
 func TestEndpointsAvailability(t *testing.T) {
 	log.Println("TestEndpointsAvailability test starts")
+
 	var testInputs = [...]struct{
 		endpoint           string
 		expectedStatusCode int
@@ -89,13 +89,13 @@ func TestEndpointsAvailability(t *testing.T) {
 		var completeUrl = httpUrlPrefix + testInput.endpoint
 		resp, err := http.Get(completeUrl)
 		if err != nil {
-			t.Errorf("Http server unreachable for url: %s",completeUrl  )
+			t.Fatalf("Http server unreachable for url: %s",completeUrl  )
 		}
 
 		wantResponseStatus := testInput.expectedStatusCode
 		gotResponseStatus := resp.StatusCode
 		if wantResponseStatus != gotResponseStatus {
-			t.Errorf("endpoint: %s expected response code: %d obtained: %d" ,completeUrl,wantResponseStatus,gotResponseStatus  )
+			t.Fatalf("endpoint: %s expected response code: %d obtained: %d" ,completeUrl,wantResponseStatus,gotResponseStatus  )
 		}
 		log.Printf("endpoint:  %s, responded with expected status code %d\n", testInput.endpoint, testInput.expectedStatusCode)
 	}
@@ -103,12 +103,13 @@ func TestEndpointsAvailability(t *testing.T) {
 
 func TestMetricServerContentUpdating(t *testing.T) {
 	log.Println("TestMetricServerContentUpdating test starts")
+	time.Sleep(time.Second * 1)
 
 	resp, _ := http.Get(httpUrlPrefix + metricsEndpoint)
 	body, _ := ioutil.ReadAll(resp.Body)
-	totalRequestCountT1 := test.ParseCountFromMetrics(string(body))
-	if len(totalRequestCountT1) < 1 {
-		t.Errorf("Content of metric server is not updated as expected")
+	totalRequestCountT1, _ := strconv.Atoi(ParseCountFromMetrics(string(body)))
+	if totalRequestCountT1 < 1 {
+		t.Fatalf("Content of metric server is not updated as expected")
 	}
 
 	// test wait for period of time before sending next request
@@ -118,9 +119,11 @@ func TestMetricServerContentUpdating(t *testing.T) {
 
 
 	// totalRequestCountT2 stores value produced after defined number of seconds from obtaining totalRequestCountT1
-	totalRequestCountT2 := test.ParseCountFromMetrics(string(body2))
+	totalRequestCountT2, _ :=  strconv.Atoi(ParseCountFromMetrics(string(body2)))
 	if totalRequestCountT2 <= totalRequestCountT1{
-		t.Errorf("Data are not updated within requested time period %d on endpoint %s", metricEndpointRequestTimeout, metricsEndpoint)
+		t.Fatalf("tcount1:  %d tcount2: %d ", totalRequestCountT1, totalRequestCountT2)
+		//t.Errorf("Data are not updated within requested time period %d on endpoint %s", metricEndpointRequestTimeout, metricsEndpoint)
+
 	}
 
 }

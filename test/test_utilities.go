@@ -24,3 +24,5 @@ func IsTopicPresent(topicName string, topics []string  ) bool{
 	_, isTopicPresent := topicsAsMap[topicName]
 	return isTopicPresent
 }
+
+
