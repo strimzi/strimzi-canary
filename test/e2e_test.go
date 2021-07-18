@@ -3,22 +3,24 @@
 package test
 
 import (
+	"context"
 	"github.com/Shopify/sarama"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
 
 
 const (
-	httpUrlPrefix                      = "http://localhost:8080"
-	metricsEndpoint                    = "/metrics"
-	canaryTopicName                    = "__strimzi_canary"
-	metricEndpointRequestTimeout       = 3
-	kafkaMainBroker                    = "127.0.0.1:9092"
+	metricEndpointRequestTimeout = 3
+	httpUrlPrefix   = "http://localhost:8080"
+	metricsEndpoint = "/metrics"
+	canaryTopicName = "__strimzi_canary"
+	KafkaBroker     = "127.0.0.1:9092"
 )
 
 /* test checks for following:
@@ -28,16 +30,21 @@ const (
 func TestCanaryTopicLiveliness(t *testing.T) {
 	log.Println("TestCanaryTopic test starts")
 
-	// setting up timeout
+	// setting up timeout and handler for consumer group
 	timeout := time.After(40 * time.Second)
-	testDone := make(chan bool)
+	handler := exampleConsumerGroupHandler{}
+	handler.mutexWritePartitionPresence = &sync.Mutex{}
+	handler.consumingDone = make(chan bool)
+
 	// test itself.
 	go func() {
 		config := sarama.NewConfig()
 		config.Consumer.Return.Errors = true
+		config.Consumer.Offsets.Initial =  sarama.OffsetOldest
+		ctx := context.Background()
 
 		//kafka end point
-		brokers := []string{kafkaMainBroker}
+		brokers := []string{KafkaBroker}
 		//get broker
 		consumer, err := sarama.NewConsumer(brokers, config)
 
@@ -50,23 +57,33 @@ func TestCanaryTopicLiveliness(t *testing.T) {
 			t.Fatalf(err.Error())
 		}
 
-
 		if !IsTopicPresent(canaryTopicName, topics) {
 			t.Fatalf("%s is not present", canaryTopicName)
 		}
 
 		// consume single message
-		partitionConsumer, _ := consumer.ConsumePartition(canaryTopicName, 0, 0)
-		msg := <-partitionConsumer.Messages()
-		log.Printf("Consumed: offset:%d  value:%v", msg.Offset, string(msg.Value))
-		testDone <- true
+		group, err := sarama.NewConsumerGroup([]string{KafkaBroker}, "faq-g9", config)
+		if err != nil {
+			panic(err)
+		}
 
+		// set up client for getting partition count on canary topic
+		client, _ := sarama.NewClient([]string{KafkaBroker},config )
+		listOfPartitions, _ := client.Partitions(canaryTopicName)
+		var partitionsCount =  len(listOfPartitions)
+		handler.partitionsConsumptionSlice = make([]bool, partitionsCount)
+
+		// set up consumer group's handler for Strimzi canary topic
+		topicsToConsume := []string{canaryTopicName}
+
+		// group.Consume is blocking
+		go group.Consume(ctx, topicsToConsume, handler)
 	}()
 
 	select {
 	case <-timeout:
 		t.Fatalf("Test didn't finish in time due to message not being read in time")
-	case <-testDone:
+	case <-handler.consumingDone:
 		log.Println("message received")
 	}
 
@@ -101,34 +118,51 @@ func TestEndpointsAvailability(t *testing.T) {
 	}
 }
 
-func TestMetricServerContentUpdating(t *testing.T) {
-	log.Println("TestMetricServerContentUpdating test starts")
-	time.Sleep(time.Second * 1)
+func TestMetricServerPrometheusContent(t *testing.T) {
+	log.Println("TestMetricServerPrometheusContent test starts")
 
 	resp, _ := http.Get(httpUrlPrefix + metricsEndpoint)
 	body, _ := ioutil.ReadAll(resp.Body)
-	totalRequestCountT1, _ := strconv.Atoi(ParseCountFromMetrics(string(body)))
+	totalRequestCountT1, _ := strconv.Atoi(parseSucReqRateFromMetrics(string(body)))
 	if totalRequestCountT1 < 1 {
 		t.Fatalf("Content of metric server is not updated as expected")
 	}
 
-	// test wait for period of time before sending next request
-	time.Sleep(time.Second * metricEndpointRequestTimeout)
 	resp2, _ := http.Get(httpUrlPrefix + metricsEndpoint)
 	body2, _ := ioutil.ReadAll(resp2.Body)
 
-
 	// totalRequestCountT2 stores value produced after defined number of seconds from obtaining totalRequestCountT1
-	totalRequestCountT2, _ :=  strconv.Atoi(ParseCountFromMetrics(string(body2)))
+	totalRequestCountT2, _ :=  strconv.Atoi(parseSucReqRateFromMetrics(string(body2)))
 	if totalRequestCountT2 <= totalRequestCountT1{
-		t.Fatalf("tcount1:  %d tcount2: %d ", totalRequestCountT1, totalRequestCountT2)
-		//t.Errorf("Data are not updated within requested time period %d on endpoint %s", metricEndpointRequestTimeout, metricsEndpoint)
-
+		t.Errorf("Data are not updated within requested time period %d on endpoint %s", metricEndpointRequestTimeout, metricsEndpoint)
 	}
 
 }
 
+// Test looks at any sort of published error such as client creation describe cluster etc...
+func TestMetricServerCanaryContent(t *testing.T) {
+	log.Println("TestMetricServerCanaryContent test starts")
+	// request is repeated multiple times (after waiting 0.5 second) in case data have not yet been published.
+	var totalErrorString string
+	var repeat = 5
+	for i := 0; i < repeat; i++ {
+		resp, _ := http.Get(httpUrlPrefix + metricsEndpoint)
+		body, _ := ioutil.ReadAll(resp.Body)
+		totalErrorString = parseGeneratedErrorsFromMetrics(string(body))
+		if totalErrorString == "" {
+			time.Sleep(time.Microsecond * 500)
+			continue
+		}
+		// data have been loaded
+		break
+	}
 
-
-
-
+	totalErrorsCount, err := strconv.Atoi(totalErrorString)
+	// Because canary starts before there is Any Broker available, there should be reports about whole sort of unsuccessful attempts.
+	if totalErrorsCount == 0 {
+		t.Fatalf("Content of metric server is not updated as expected")
+	}
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+}
