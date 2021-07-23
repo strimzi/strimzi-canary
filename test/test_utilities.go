@@ -47,19 +47,19 @@ func (h exampleConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSessi
 	return nil
 }
 
-func parseGeneratedErrorsFromMetrics(input string) string{
-	// RE to catch any sort of error
-	regex, _ := regexp.Compile("(?m)^strimzi_canary.*error_total.*\\s(\\d+)$")
+// We are only interested in counter that is produced
+func parseSucReqRateFromMetrics( input string) string  {
+	regex, _ := regexp.Compile("(?m)^promhttp_metric_handler_requests_total.*200...(\\d+)$")
 	data := regex.FindStringSubmatch(input)
-	if len(data) >= 1 {
+	if len(data) > 1 {
 		return data[1]
 	}
 	return ""
 }
 
-// We are only interested in counter that is produced
-func parseSucReqRateFromMetrics( input string) string  {
-	regex, _ := regexp.Compile("(?m)^promhttp_metric_handler_requests_total.*200...(\\d+)$")
+// get total number of produced records for canary test topic
+func parseCanaryRecordsProducedFromMetrics( input string) string {
+	regex, _ := regexp.Compile("(?m)^.*strimzi_canary_records_produced_total\\S*\\s(\\d+)$")
 	data := regex.FindStringSubmatch(input)
 	if len(data) > 1 {
 		return data[1]

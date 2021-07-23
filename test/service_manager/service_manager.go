@@ -9,23 +9,18 @@ import (
 	"time"
 )
 
-type ServiceManager interface {
-	StartKafkaZookeeperContainers()
-	StopKafkaZookeeperContainers()
-	StartCanary()
-}
-
 // Implementation of Service Manager
-type Controller struct {
+type ServiceManager struct {
 	CanaryConfig
 	Paths
 }
 
 // Configurations of canary that is manipulated in e2e tests
 type CanaryConfig struct {
-	RetentionTime string
-	kafkaBrokerAddress string
-	TopicTestName string
+	RetentionTime      string
+	TopicTestName      string
+	KafkaBrokerAddress string
+
 }
 
 // paths to services ( kafka zookeeper docker compose, and Canary application main method)
@@ -35,7 +30,7 @@ type Paths struct {
 }
 
 const (
-	canaryTestTopicName      = "__strimzi_canary_test"
+	canaryTestTopicName      = "__strimzi_canary_test3"
 	kafkaBrokerAddress       = "127.0.0.1:9092"
 	canaryRetentionTime      = "1000"
 
@@ -43,7 +38,7 @@ const (
 	pathToMainMethod         = "cmd/main.go"
 )
 
-func (c *Controller) StartKafkaZookeeperContainers() {
+func (c *ServiceManager) StartKafkaZookeeperContainers() {
 	log.Println("Starting kafka & Zookeeper")
 
 	var cmd = exec.Command("docker-compose", "-f", c.pathDockerComposeKafkaZookeeper, "up", "-d" )
@@ -55,24 +50,25 @@ func (c *Controller) StartKafkaZookeeperContainers() {
 	c.waitForBroker()
 }
 
-func (c *Controller) StopKafkaZookeeperContainers() {
+func (c *ServiceManager) StopKafkaZookeeperContainers() {
 	var cmd = exec.Command("docker-compose", "-f", c.pathDockerComposeKafkaZookeeper, "down")
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func CreateManager() ServiceManager {
-	manager := &Controller{}
-	manager.kafkaBrokerAddress = kafkaBrokerAddress
+func CreateManager() *ServiceManager {
+	manager := &ServiceManager{}
+
 	manager.RetentionTime = canaryRetentionTime
 	manager.TopicTestName = canaryTestTopicName
 	manager.pathToCanaryMain = pathToMainMethod
 	manager.pathDockerComposeKafkaZookeeper = pathToDockerComposeImage
+	manager.KafkaBrokerAddress = kafkaBrokerAddress
 	return manager
 }
 
-func (c *Controller) StartCanary() {
+func (c *ServiceManager) StartCanary() {
 	log.Println("Starting Canary")
 	c.setUpCanaryParamsViaEnv()
 	myCmd := exec.Command("go", "run",  c.pathToCanaryMain )
@@ -88,14 +84,14 @@ func (c *Controller) StartCanary() {
 }
 
 // per se it means waiting for container's broker to communicate correctly
-func (c *Controller) waitForBroker(){
+func (c *ServiceManager) waitForBroker(){
 	log.Println("start waiting for broker")
 	timeout := time.After(10 * time.Second)
 	brokerIsReadyChannel := make(chan bool)
 
 	go func() {
 		configuration := sarama.NewConfig()
-		brokers := []string{c.kafkaBrokerAddress}
+		brokers := []string{c.KafkaBrokerAddress}
 
 		for ;; {
 			consumer, err := sarama.NewConsumer(brokers, configuration)
@@ -121,14 +117,14 @@ func (c *Controller) waitForBroker(){
 }
 
 // waiting while canary create new topic on kafka broker.
-func (c *Controller) waitForCanarySetUp(){
+func (c *ServiceManager) waitForCanarySetUp(){
 	log.Println("start waiting for canary setup")
 	timeout := time.After(10 * time.Second)
 	canaryIsReadyChannel := make(chan bool)
 
 	go func() {
 		configuration := sarama.NewConfig()
-		brokers := []string{c.kafkaBrokerAddress}
+		brokers := []string{c.KafkaBrokerAddress}
 
 		for ;;{
 			consumer, err := sarama.NewConsumer(brokers, configuration)
@@ -161,10 +157,10 @@ func (c *Controller) waitForCanarySetUp(){
 
 }
 
-func (c *Controller) setUpCanaryParamsViaEnv(){
+func (c *ServiceManager) setUpCanaryParamsViaEnv(){
 	log.Println("Setting up environment variables")
 	os.Setenv(config.ReconcileIntervalEnvVar, c.RetentionTime)
 	os.Setenv(config.TopicEnvVar, c.TopicTestName)
-	os.Setenv(config.BootstrapServersEnvVar, c.kafkaBrokerAddress)
+	os.Setenv(config.BootstrapServersEnvVar, c.KafkaBrokerAddress)
 
 }

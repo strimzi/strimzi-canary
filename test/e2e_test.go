@@ -14,13 +14,9 @@ import (
 	"time"
 )
 
-
 const (
-	metricEndpointRequestTimeout = 3
 	httpUrlPrefix   = "http://localhost:8080"
 	metricsEndpoint = "/metrics"
-	canaryTopicName = "__strimzi_canary"
-	KafkaBroker     = "127.0.0.1:9092"
 )
 
 /* test checks for following:
@@ -30,8 +26,8 @@ const (
 func TestCanaryTopicLiveliness(t *testing.T) {
 	log.Println("TestCanaryTopic test starts")
 
-	// setting up timeout and handler for consumer group
-	timeout := time.After(40 * time.Second)
+	// setting up timeout and handler for consumer group, there is no need to wait much longer then is the retention time.
+	timeout := time.After(time.Second * 10)
 	handler := exampleConsumerGroupHandler{}
 	handler.mutexWritePartitionPresence = &sync.Mutex{}
 	handler.consumingDone = make(chan bool)
@@ -44,7 +40,7 @@ func TestCanaryTopicLiveliness(t *testing.T) {
 		ctx := context.Background()
 
 		//kafka end point
-		brokers := []string{KafkaBroker}
+		brokers := []string{serviceManager.KafkaBrokerAddress}
 		//get broker
 		consumer, err := sarama.NewConsumer(brokers, config)
 
@@ -56,25 +52,23 @@ func TestCanaryTopicLiveliness(t *testing.T) {
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
-
-		if !IsTopicPresent(canaryTopicName, topics) {
-			t.Fatalf("%s is not present", canaryTopicName)
+		if !IsTopicPresent(serviceManager.TopicTestName, topics) {
+			t.Fatalf("%s is not present amongst existing topic %v", serviceManager.TopicTestName, topics)
 		}
-
 		// consume single message
-		group, err := sarama.NewConsumerGroup([]string{KafkaBroker}, "faq-g9", config)
+		group, err := sarama.NewConsumerGroup([]string{serviceManager.KafkaBrokerAddress}, "faq-g9", config)
 		if err != nil {
 			panic(err)
 		}
 
 		// set up client for getting partition count on canary topic
-		client, _ := sarama.NewClient([]string{KafkaBroker},config )
-		listOfPartitions, _ := client.Partitions(canaryTopicName)
+		client, _ := sarama.NewClient([]string{serviceManager.KafkaBrokerAddress},config )
+		listOfPartitions, _ := client.Partitions(serviceManager.TopicTestName)
 		var partitionsCount =  len(listOfPartitions)
 		handler.partitionsConsumptionSlice = make([]bool, partitionsCount)
 
 		// set up consumer group's handler for Strimzi canary topic
-		topicsToConsume := []string{canaryTopicName}
+		topicsToConsume := []string{serviceManager.TopicTestName}
 
 		// group.Consume is blocking
 		go group.Consume(ctx, topicsToConsume, handler)
@@ -90,7 +84,7 @@ func TestCanaryTopicLiveliness(t *testing.T) {
 }
 
 func TestEndpointsAvailability(t *testing.T) {
-	log.Println("TestEndpointsAvailability test starts")
+	log.Println("TestEndpointsAvailability test startss")
 
 	var testInputs = [...]struct{
 		endpoint           string
@@ -116,6 +110,7 @@ func TestEndpointsAvailability(t *testing.T) {
 		}
 		log.Printf("endpoint:  %s, responded with expected status code %d\n", testInput.endpoint, testInput.expectedStatusCode)
 	}
+
 }
 
 func TestMetricServerPrometheusContent(t *testing.T) {
@@ -134,35 +129,38 @@ func TestMetricServerPrometheusContent(t *testing.T) {
 	// totalRequestCountT2 stores value produced after defined number of seconds from obtaining totalRequestCountT1
 	totalRequestCountT2, _ :=  strconv.Atoi(parseSucReqRateFromMetrics(string(body2)))
 	if totalRequestCountT2 <= totalRequestCountT1{
-		t.Errorf("Data are not updated within requested time period %d on endpoint %s", metricEndpointRequestTimeout, metricsEndpoint)
+		t.Errorf("Prometheus metrics are not updated correctly on endpoint  %s", metricsEndpoint)
 	}
 
 }
 
-// Test looks at any sort of published error such as client creation describe cluster etc...
+// Test verifies correctness of canary's metric (produced records)
 func TestMetricServerCanaryContent(t *testing.T) {
 	log.Println("TestMetricServerCanaryContent test starts")
-	// request is repeated multiple times (after waiting 0.5 second) in case data have not yet been published.
-	var totalErrorString string
-	var repeat = 5
-	for i := 0; i < repeat; i++ {
-		resp, _ := http.Get(httpUrlPrefix + metricsEndpoint)
-		body, _ := ioutil.ReadAll(resp.Body)
-		totalErrorString = parseGeneratedErrorsFromMetrics(string(body))
-		if totalErrorString == "" {
-			time.Sleep(time.Microsecond * 500)
-			continue
-		}
-		// data have been loaded
-		break
-	}
+	// first record is created only after retention time, before that there is no record in metrics
+	waitTimeMilliseconds, _ := strconv.Atoi(serviceManager.RetentionTime)
+	time.Sleep( time.Duration(waitTimeMilliseconds * 2) * time.Millisecond )
 
-	totalErrorsCount, err := strconv.Atoi(totalErrorString)
-	// Because canary starts before there is Any Broker available, there should be reports about whole sort of unsuccessful attempts.
-	if totalErrorsCount == 0 {
+	resp, _ := http.Get(httpUrlPrefix + metricsEndpoint)
+	body, _ := ioutil.ReadAll(resp.Body)
+	totalProducedRecordsCount, err := strconv.Atoi(parseCanaryRecordsProducedFromMetrics(string(body)))
+	if err != nil {
 		t.Fatalf("Content of metric server is not updated as expected")
 	}
-	if err != nil {
-		t.Fatalf(err.Error())
+
+	// for update of this data we have to wait with another request for at least reconcile time.
+	time.Sleep( time.Duration(waitTimeMilliseconds * 3) * time.Millisecond )
+
+	resp2, _ := http.Get(httpUrlPrefix + metricsEndpoint)
+	body2, _ := ioutil.ReadAll(resp2.Body)
+
+	// totalProducedRecordsCount2 stores value produced after defined number of seconds from obtaining totalProducedRecordsCount
+	totalProducedRecordsCount2, _ :=  strconv.Atoi(parseCanaryRecordsProducedFromMetrics(string(body2)))
+	log.Println("records produced before first request: ", totalProducedRecordsCount)
+	log.Println("records produced before second request: ", totalProducedRecordsCount2)
+	if totalProducedRecordsCount2 <= totalProducedRecordsCount {
+
+		t.Errorf("Data are not updated within requested time period on endpoint %s", metricsEndpoint)
 	}
+
 }
