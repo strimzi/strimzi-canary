@@ -30,12 +30,12 @@ type Paths struct {
 }
 
 const (
-	canaryTestTopicName      = "__strimzi_canary_test3"
+	canaryTestTopicName      = "__strimzi_canary_test_topic"
 	kafkaBrokerAddress       = "127.0.0.1:9092"
 	canaryRetentionTime      = "1000"
 
-	pathToDockerComposeImage = "test/compose-kafka-zookeeper.yaml"
-	pathToMainMethod         = "cmd/main.go"
+	pathToDockerComposeImage = "compose-kafka-zookeeper.yaml"
+	pathToMainMethod         = "../cmd/main.go"
 )
 
 func (c *ServiceManager) StartKafkaZookeeperContainers() {
@@ -72,8 +72,6 @@ func (c *ServiceManager) StartCanary() {
 	log.Println("Starting Canary")
 	c.setUpCanaryParamsViaEnv()
 	myCmd := exec.Command("go", "run",  c.pathToCanaryMain )
-	//myCmd.Stdout = os.Stdout
-	//myCmd.Stderr = os.Stderr
 
 	if err := myCmd.Start(); err != nil {
 		log.Fatal(err.Error())
@@ -94,14 +92,13 @@ func (c *ServiceManager) waitForBroker(){
 		brokers := []string{c.KafkaBrokerAddress}
 
 		for ;; {
-			consumer, err := sarama.NewConsumer(brokers, configuration)
+			// if we can create Cluster Admin, broker can communicate
+			_, err := sarama.NewClusterAdmin(brokers, configuration)
 			if err != nil {
 				log.Println("waiting for broker's start")
 				time.Sleep(time.Millisecond * 500)
 				continue
 			}
-			// if we can create consumer broker can communicate
-			consumer.Close()
 			break
 		}
 
@@ -124,26 +121,20 @@ func (c *ServiceManager) waitForCanarySetUp(){
 
 	go func() {
 		configuration := sarama.NewConfig()
-		brokers := []string{c.KafkaBrokerAddress}
+
 
 		for ;;{
-			consumer, err := sarama.NewConsumer(brokers, configuration)
-
-			// because we should firstly wait for ready broker this clause should not happened at all
+			newClusterAdmin, _ := sarama.NewClusterAdmin([]string{c.KafkaBrokerAddress}, configuration)
+			topicsDescriptionList, err := newClusterAdmin.DescribeTopics([]string{c.TopicTestName})
+			if err != nil || len(topicsDescriptionList) != 1 || topicsDescriptionList[0].Name != c.TopicTestName {
+				time.Sleep(time.Millisecond * 500)
+				continue
+			}
+			err = newClusterAdmin.Close();
 			if err != nil {
 				log.Fatal(err.Error())
 			}
-			topics, err := consumer.Topics()
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-			if IsTopicPresent(c.TopicTestName, topics){break}
-			log.Println("waiting for topic creation")
-			time.Sleep(time.Millisecond * 500)
-			err = consumer.Close()
-			if err != nil {
-				log.Fatal(err.Error())
-			}
+			break
 		}
 		canaryIsReadyChannel <- true
 	}()
@@ -153,7 +144,6 @@ func (c *ServiceManager) waitForCanarySetUp(){
 	case <-canaryIsReadyChannel:
 		log.Println("Canary is ready")
 	}
-
 
 }
 

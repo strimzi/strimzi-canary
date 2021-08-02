@@ -8,7 +8,7 @@ import (
 )
 
 
-type exampleConsumerGroupHandler struct{
+type ExampleConsumerGroupHandler struct{
 	// mutex for exclusive write on message handler
 	mutexWritePartitionPresence *sync.Mutex
 	consumingDone               chan bool
@@ -16,7 +16,14 @@ type exampleConsumerGroupHandler struct{
 
 }
 
-func (h exampleConsumerGroupHandler) isEveryPartitionConsumed() bool  {
+func NewConsumerGroupHandler() ExampleConsumerGroupHandler {
+	handler := ExampleConsumerGroupHandler{}
+	handler.mutexWritePartitionPresence = &sync.Mutex{}
+	handler.consumingDone = make(chan bool)
+	return handler
+}
+
+func (h ExampleConsumerGroupHandler) isEveryPartitionConsumed() bool  {
 	for _,value := range h.partitionsConsumptionSlice {
 		if value != true {
 			return false
@@ -25,11 +32,11 @@ func (h exampleConsumerGroupHandler) isEveryPartitionConsumed() bool  {
 	return true
 }
 
-func (exampleConsumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error   { return nil }
+func (ExampleConsumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error { return nil }
 
-func (exampleConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
+func (ExampleConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
 
-func (h exampleConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (h ExampleConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for msg := range claim.Messages() {
 		h.mutexWritePartitionPresence.Lock()
 		// setting for current partition that at least one message has been produced.

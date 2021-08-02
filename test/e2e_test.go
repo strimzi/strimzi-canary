@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 )
@@ -21,16 +20,13 @@ const (
 
 /* test checks for following:
 *  the presence of canary topic,
-*  liveliness of topic (messages being produced),
+*  Liveness of topic (messages being produced),
 */
-func TestCanaryTopicLiveliness(t *testing.T) {
-	log.Println("TestCanaryTopic test starts")
+func TestCanaryTopicLiveness(t *testing.T) {
 
-	// setting up timeout and handler for consumer group, there is no need to wait much longer then is the retention time.
+	log.Println("TestCanaryTopic test starts")
+	consumingHandler := NewConsumerGroupHandler();
 	timeout := time.After(time.Second * 10)
-	handler := exampleConsumerGroupHandler{}
-	handler.mutexWritePartitionPresence = &sync.Mutex{}
-	handler.consumingDone = make(chan bool)
 
 	// test itself.
 	go func() {
@@ -39,22 +35,15 @@ func TestCanaryTopicLiveliness(t *testing.T) {
 		config.Consumer.Offsets.Initial =  sarama.OffsetOldest
 		ctx := context.Background()
 
-		//kafka end point
-		brokers := []string{serviceManager.KafkaBrokerAddress}
-		//get broker
-		consumer, err := sarama.NewConsumer(brokers, config)
+		newClusterAdmin, _ := sarama.NewClusterAdmin([]string{serviceManager.KafkaBrokerAddress}, config);
+		topicsDescriptionList, err := newClusterAdmin.DescribeTopics([]string{serviceManager.TopicTestName})
+		if err != nil {
+			t.Fatal("Problem with obtaining canary topic")
+		}
+		if len(topicsDescriptionList) != 1 || topicsDescriptionList[0].Name != serviceManager.TopicTestName {
+			t.Fatalf(" %s Topic isn't present", serviceManager.TopicTestName)
+		}
 
-		if err != nil {
-			t.Fatalf(err.Error())
-		}
-		// get all topics
-		topics, err := consumer.Topics()
-		if err != nil {
-			t.Fatalf(err.Error())
-		}
-		if !IsTopicPresent(serviceManager.TopicTestName, topics) {
-			t.Fatalf("%s is not present amongst existing topic %v", serviceManager.TopicTestName, topics)
-		}
 		// consume single message
 		group, err := sarama.NewConsumerGroup([]string{serviceManager.KafkaBrokerAddress}, "faq-g9", config)
 		if err != nil {
@@ -65,19 +54,19 @@ func TestCanaryTopicLiveliness(t *testing.T) {
 		client, _ := sarama.NewClient([]string{serviceManager.KafkaBrokerAddress},config )
 		listOfPartitions, _ := client.Partitions(serviceManager.TopicTestName)
 		var partitionsCount =  len(listOfPartitions)
-		handler.partitionsConsumptionSlice = make([]bool, partitionsCount)
+		consumingHandler.partitionsConsumptionSlice = make([]bool, partitionsCount)
 
-		// set up consumer group's handler for Strimzi canary topic
+		// set up consumer group's consumingHandler for Strimzi canary topic
 		topicsToConsume := []string{serviceManager.TopicTestName}
 
 		// group.Consume is blocking
-		go group.Consume(ctx, topicsToConsume, handler)
+		go group.Consume(ctx, topicsToConsume, consumingHandler)
 	}()
 
 	select {
 	case <-timeout:
 		t.Fatalf("Test didn't finish in time due to message not being read in time")
-	case <-handler.consumingDone:
+	case <-consumingHandler.consumingDone:
 		log.Println("message received")
 	}
 

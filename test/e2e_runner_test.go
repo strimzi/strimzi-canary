@@ -4,8 +4,6 @@ import (
 	"github.com/strimzi/strimzi-canary/test/service_manager"
 	"log"
 	"os"
-	"path"
-	"runtime"
 	"testing"
 )
 
@@ -13,15 +11,6 @@ var (
 	serviceManager *service_manager.ServiceManager
 )
 
-// returning into the root from /test
-func init() {
-	_, filename, _, _ := runtime.Caller(0)
-	dir := path.Join(path.Dir(filename), "..")
-	err := os.Chdir(dir)
-	if err != nil {
-		panic(err)
-	}
-}
 
 func TestMain(m *testing.M) {
 
