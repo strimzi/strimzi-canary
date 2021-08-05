@@ -17,9 +17,9 @@ type ServiceManager struct {
 
 // Configurations of canary that is manipulated in e2e tests
 type CanaryConfig struct {
-	RetentionTime      string
-	TopicTestName      string
-	KafkaBrokerAddress string
+	ReconcileIntervalTime string
+	TopicTestName         string
+	KafkaBrokerAddress    string
 
 }
 
@@ -30,12 +30,12 @@ type Paths struct {
 }
 
 const (
-	canaryTestTopicName      = "__strimzi_canary_test_topic"
-	kafkaBrokerAddress       = "127.0.0.1:9092"
-	canaryRetentionTime      = "1000"
+	canaryTestTopicName         = "__strimzi_canary_test_topic"
+	kafkaBrokerAddress          = "127.0.0.1:9092"
+	canaryReconcileIntervalTime = "1000"
 
-	pathToDockerComposeImage = "compose-kafka-zookeeper.yaml"
-	pathToMainMethod         = "../cmd/main.go"
+	pathToDockerComposeImage    = "compose-kafka-zookeeper.yaml"
+	pathToMainMethod            = "../cmd/main.go"
 )
 
 func (c *ServiceManager) StartKafkaZookeeperContainers() {
@@ -60,7 +60,7 @@ func (c *ServiceManager) StopKafkaZookeeperContainers() {
 func CreateManager() *ServiceManager {
 	manager := &ServiceManager{}
 
-	manager.RetentionTime = canaryRetentionTime
+	manager.ReconcileIntervalTime = canaryReconcileIntervalTime
 	manager.TopicTestName = canaryTestTopicName
 	manager.pathToCanaryMain = pathToMainMethod
 	manager.pathDockerComposeKafkaZookeeper = pathToDockerComposeImage
@@ -149,7 +149,7 @@ func (c *ServiceManager) waitForCanarySetUp(){
 
 func (c *ServiceManager) setUpCanaryParamsViaEnv(){
 	log.Println("Setting up environment variables")
-	os.Setenv(config.ReconcileIntervalEnvVar, c.RetentionTime)
+	os.Setenv(config.ReconcileIntervalEnvVar, c.ReconcileIntervalTime)
 	os.Setenv(config.TopicEnvVar, c.TopicTestName)
 	os.Setenv(config.BootstrapServersEnvVar, c.KafkaBrokerAddress)
 

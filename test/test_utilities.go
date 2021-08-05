@@ -1,10 +1,12 @@
 package test
 
 import (
+	"fmt"
 	"github.com/Shopify/sarama"
 	"log"
 	"regexp"
 	"sync"
+	"time"
 )
 
 
@@ -74,13 +76,17 @@ func parseCanaryRecordsProducedFromMetrics( input string) string {
 	return ""
 }
 
-func IsTopicPresent(topicName string, topics []string  ) bool{
-	topicsAsMap := map[string]struct{}{}
-	for _, topic := range topics {
-		topicsAsMap[topic] = struct{}{}
+func getPartitionCount( clusterAdmin sarama.ClusterAdmin ,topicName string ) int{
+	for i := 0; i < 20; i++ {
+		topicsDescriptionList, err := clusterAdmin.DescribeTopics([]string{topicName})
+		if err != nil {
+			log.Fatal(err)
+		}
+		if partitionCount := len(topicsDescriptionList[0].Partitions) ; partitionCount > 0 {
+			return  partitionCount
+		}
+		fmt.Println("waiting for admin update")
+		time.Sleep(time.Millisecond * 500)
 	}
-	_, isTopicPresent := topicsAsMap[topicName]
-	return isTopicPresent
+	return 0
 }
-
-

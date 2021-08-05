@@ -34,7 +34,6 @@ func TestCanaryTopicLiveness(t *testing.T) {
 		config.Consumer.Return.Errors = true
 		config.Consumer.Offsets.Initial =  sarama.OffsetOldest
 		ctx := context.Background()
-
 		newClusterAdmin, _ := sarama.NewClusterAdmin([]string{serviceManager.KafkaBrokerAddress}, config);
 		topicsDescriptionList, err := newClusterAdmin.DescribeTopics([]string{serviceManager.TopicTestName})
 		if err != nil {
@@ -51,10 +50,8 @@ func TestCanaryTopicLiveness(t *testing.T) {
 		}
 
 		// set up client for getting partition count on canary topic
-		client, _ := sarama.NewClient([]string{serviceManager.KafkaBrokerAddress},config )
-		listOfPartitions, _ := client.Partitions(serviceManager.TopicTestName)
-		var partitionsCount =  len(listOfPartitions)
-		consumingHandler.partitionsConsumptionSlice = make([]bool, partitionsCount)
+		var totalPartCount = getPartitionCount( newClusterAdmin, serviceManager.TopicTestName);
+		consumingHandler.partitionsConsumptionSlice = make([]bool, totalPartCount)
 
 		// set up consumer group's consumingHandler for Strimzi canary topic
 		topicsToConsume := []string{serviceManager.TopicTestName}
@@ -127,7 +124,7 @@ func TestMetricServerPrometheusContent(t *testing.T) {
 func TestMetricServerCanaryContent(t *testing.T) {
 	log.Println("TestMetricServerCanaryContent test starts")
 	// first record is created only after retention time, before that there is no record in metrics
-	waitTimeMilliseconds, _ := strconv.Atoi(serviceManager.RetentionTime)
+	waitTimeMilliseconds, _ := strconv.Atoi(serviceManager.ReconcileIntervalTime)
 	time.Sleep( time.Duration(waitTimeMilliseconds * 2) * time.Millisecond )
 
 	resp, _ := http.Get(httpUrlPrefix + metricsEndpoint)
