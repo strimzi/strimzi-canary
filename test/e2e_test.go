@@ -21,11 +21,11 @@ const (
 /* test checks for following:
 *  the presence of canary topic,
 *  Liveness of topic (messages being produced),
-*/
-func TestCanaryTopicLiveness(t *testing.T) {
+ */
+func TestCanaryTopicLivenesss(t *testing.T) {
 
 	log.Println("TestCanaryTopic test starts")
-	consumingHandler := NewConsumerGroupHandler();
+	consumingHandler := NewConsumerGroupHandler()
 	timeout := time.After(time.Second * 10)
 
 	// test itself.
@@ -34,13 +34,24 @@ func TestCanaryTopicLiveness(t *testing.T) {
 		config.Consumer.Return.Errors = true
 		config.Consumer.Offsets.Initial =  sarama.OffsetOldest
 		ctx := context.Background()
-		newClusterAdmin, _ := sarama.NewClusterAdmin([]string{serviceManager.KafkaBrokerAddress}, config);
-		topicsDescriptionList, err := newClusterAdmin.DescribeTopics([]string{serviceManager.TopicTestName})
-		if err != nil {
-			t.Fatal("Problem with obtaining canary topic")
-		}
-		if len(topicsDescriptionList) != 1 || topicsDescriptionList[0].Name != serviceManager.TopicTestName {
-			t.Fatalf(" %s Topic isn't present", serviceManager.TopicTestName)
+		clusterAdmin, _ := sarama.NewClusterAdmin([]string{serviceManager.KafkaBrokerAddress}, config)
+
+		var topicPartitionCount int
+		// wait for topic creation
+		for  {
+			TopicMetadata, err := clusterAdmin.DescribeTopics([]string{serviceManager.TopicTestName})
+			if err != nil || len(TopicMetadata) != 1 {
+				t.Fatal("Problem communicating with kafka broker")
+			}
+			topicMetadata := TopicMetadata[0]
+
+			// topic haven't been created yet.
+			if topicMetadata.Err == sarama.ErrUnknownTopicOrPartition {
+				time.Sleep(time.Millisecond * 500)
+				continue
+			}
+			topicPartitionCount = len(topicMetadata.Partitions)
+			break
 		}
 
 		// consume single message
@@ -50,8 +61,7 @@ func TestCanaryTopicLiveness(t *testing.T) {
 		}
 
 		// set up client for getting partition count on canary topic
-		var totalPartCount = getPartitionCount( newClusterAdmin, serviceManager.TopicTestName);
-		consumingHandler.partitionsConsumptionSlice = make([]bool, totalPartCount)
+		consumingHandler.partitionsConsumptionSlice = make([]bool, topicPartitionCount)
 
 		// set up consumer group's consumingHandler for Strimzi canary topic
 		topicsToConsume := []string{serviceManager.TopicTestName}
@@ -150,3 +160,4 @@ func TestMetricServerCanaryContent(t *testing.T) {
 	}
 
 }
+

@@ -1,12 +1,10 @@
 package test
 
 import (
-	"fmt"
 	"github.com/Shopify/sarama"
 	"log"
 	"regexp"
 	"sync"
-	"time"
 )
 
 
@@ -74,19 +72,4 @@ func parseCanaryRecordsProducedFromMetrics( input string) string {
 		return data[1]
 	}
 	return ""
-}
-
-func getPartitionCount( clusterAdmin sarama.ClusterAdmin ,topicName string ) int{
-	for i := 0; i < 20; i++ {
-		topicsDescriptionList, err := clusterAdmin.DescribeTopics([]string{topicName})
-		if err != nil {
-			log.Fatal(err)
-		}
-		if partitionCount := len(topicsDescriptionList[0].Partitions) ; partitionCount > 0 {
-			return  partitionCount
-		}
-		fmt.Println("waiting for admin update")
-		time.Sleep(time.Millisecond * 500)
-	}
-	return 0
 }
