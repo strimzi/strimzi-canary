@@ -49,7 +49,6 @@ func (h ExampleConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSessi
 		}
 		h.mutexWritePartitionPresence.Unlock()
 		sess.MarkMessage(msg, "")
-
 	}
 	return nil
 }

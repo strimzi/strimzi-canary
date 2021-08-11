@@ -30,7 +30,7 @@ type Paths struct {
 }
 
 const (
-	canaryTestTopicName         = "__strimzi_canary_test_topic"
+	canaryTestTopicName         = "__strimzi_canary_test_topicv123"
 	kafkaBrokerAddress          = "127.0.0.1:9092"
 	canaryReconcileIntervalTime = "1000"
 
@@ -68,6 +68,7 @@ func CreateManager() *ServiceManager {
 	return manager
 }
 
+// Canary topic will not be immediately created, therefore it is up to tests to wait for its creation.
 func (c *ServiceManager) StartCanary() {
 	log.Println("Starting Canary")
 	c.setUpCanaryParamsViaEnv()
@@ -76,9 +77,6 @@ func (c *ServiceManager) StartCanary() {
 	if err := myCmd.Start(); err != nil {
 		log.Fatal(err.Error())
 	}
-	// before we start to consider canary prepared we wait for it to create expected topic
-	c.waitForCanarySetUp()
-
 }
 
 // per se it means waiting for container's broker to communicate correctly
@@ -111,40 +109,6 @@ func (c *ServiceManager) waitForBroker(){
 	case <-brokerIsReadyChannel:
 		log.Println("Container (Broker) is ready")
 	}
-}
-
-// waiting while canary create new topic on kafka broker.
-func (c *ServiceManager) waitForCanarySetUp(){
-	log.Println("start waiting for canary setup")
-	timeout := time.After(10 * time.Second)
-	canaryIsReadyChannel := make(chan bool)
-
-	go func() {
-		configuration := sarama.NewConfig()
-
-
-		for ;;{
-			newClusterAdmin, _ := sarama.NewClusterAdmin([]string{c.KafkaBrokerAddress}, configuration)
-			topicsDescriptionList, err := newClusterAdmin.DescribeTopics([]string{c.TopicTestName})
-			if err != nil || len(topicsDescriptionList) != 1 || topicsDescriptionList[0].Name != c.TopicTestName {
-				time.Sleep(time.Millisecond * 500)
-				continue
-			}
-			err = newClusterAdmin.Close();
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-			break
-		}
-		canaryIsReadyChannel <- true
-	}()
-	select {
-	case <-timeout:
-		log.Fatal("Canary didn't boot up properly")
-	case <-canaryIsReadyChannel:
-		log.Println("Canary is ready")
-	}
-
 }
 
 func (c *ServiceManager) setUpCanaryParamsViaEnv(){

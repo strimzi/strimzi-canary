@@ -22,7 +22,7 @@ const (
 *  the presence of canary topic,
 *  Liveness of topic (messages being produced),
  */
-func TestCanaryTopicLivenesss(t *testing.T) {
+func TestCanaryTopicLiveness(t *testing.T) {
 
 	log.Println("TestCanaryTopic test starts")
 	consumingHandler := NewConsumerGroupHandler()
@@ -133,7 +133,7 @@ func TestMetricServerPrometheusContent(t *testing.T) {
 // Test verifies correctness of canary's metric (produced records)
 func TestMetricServerCanaryContent(t *testing.T) {
 	log.Println("TestMetricServerCanaryContent test starts")
-	// first record is created only after retention time, before that there is no record in metrics
+	// first record is created only after reconcile time, before that there is no record in metrics
 	waitTimeMilliseconds, _ := strconv.Atoi(serviceManager.ReconcileIntervalTime)
 	time.Sleep( time.Duration(waitTimeMilliseconds * 2) * time.Millisecond )
 
@@ -155,7 +155,6 @@ func TestMetricServerCanaryContent(t *testing.T) {
 	log.Println("records produced before first request: ", totalProducedRecordsCount)
 	log.Println("records produced before second request: ", totalProducedRecordsCount2)
 	if totalProducedRecordsCount2 <= totalProducedRecordsCount {
-
 		t.Errorf("Data are not updated within requested time period on endpoint %s", metricsEndpoint)
 	}
 
