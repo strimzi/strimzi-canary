@@ -1,19 +1,18 @@
 package test
 
 import (
-	"github.com/Shopify/sarama"
 	"log"
 	"regexp"
 	"sync"
+
+	"github.com/Shopify/sarama"
 )
 
-
-type ExampleConsumerGroupHandler struct{
+type ExampleConsumerGroupHandler struct {
 	// mutex for exclusive write on message handler
 	mutexWritePartitionPresence *sync.Mutex
 	consumingDone               chan bool
 	partitionsConsumptionSlice  []bool
-
 }
 
 func NewConsumerGroupHandler() ExampleConsumerGroupHandler {
@@ -23,9 +22,9 @@ func NewConsumerGroupHandler() ExampleConsumerGroupHandler {
 	return handler
 }
 
-func (h ExampleConsumerGroupHandler) isEveryPartitionConsumed() bool  {
-	for _,value := range h.partitionsConsumptionSlice {
-		if value != true {
+func (h ExampleConsumerGroupHandler) isEveryPartitionConsumed() bool {
+	for _, value := range h.partitionsConsumptionSlice {
+		if !value {
 			return false
 		}
 	}
@@ -54,8 +53,8 @@ func (h ExampleConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSessi
 }
 
 // We are only interested in counter that is produced
-func parseSucReqRateFromMetrics( input string) string  {
-	regex, _ := regexp.Compile("(?m)^promhttp_metric_handler_requests_total.*200...(\\d+)$")
+func parseSucReqRateFromMetrics(input string) string {
+	regex, _ := regexp.Compile(`(?m)^promhttp_metric_handler_requests_total.*200...(\d+)$`)
 	data := regex.FindStringSubmatch(input)
 	if len(data) > 1 {
 		return data[1]
@@ -64,8 +63,8 @@ func parseSucReqRateFromMetrics( input string) string  {
 }
 
 // get total number of produced records for canary test topic
-func parseCanaryRecordsProducedFromMetrics( input string) string {
-	regex, _ := regexp.Compile("(?m)^.*strimzi_canary_records_produced_total\\S*\\s(\\d+)$")
+func parseCanaryRecordsProducedFromMetrics(input string) string {
+	regex, _ := regexp.Compile(`(?m)^.*strimzi_canary_records_produced_total\S*\s(\d+)$`)
 	data := regex.FindStringSubmatch(input)
 	if len(data) > 1 {
 		return data[1]
