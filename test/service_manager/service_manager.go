@@ -1,12 +1,13 @@
 package service_manager
 
 import (
-	"github.com/Shopify/sarama"
-	"github.com/strimzi/strimzi-canary/internal/config"
 	"log"
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/Shopify/sarama"
+	"github.com/strimzi/strimzi-canary/internal/config"
 )
 
 // Implementation of Service Manager
@@ -20,13 +21,12 @@ type CanaryConfig struct {
 	ReconcileIntervalTime string
 	TopicTestName         string
 	KafkaBrokerAddress    string
-
 }
 
 // paths to services ( kafka zookeeper docker compose, and Canary application main method)
 type Paths struct {
 	pathDockerComposeKafkaZookeeper string
-	pathToCanaryMain string
+	pathToCanaryMain                string
 }
 
 const (
@@ -34,14 +34,14 @@ const (
 	kafkaBrokerAddress          = "127.0.0.1:9092"
 	canaryReconcileIntervalTime = "1000"
 
-	pathToDockerComposeImage    = "compose-kafka-zookeeper.yaml"
-	pathToMainMethod            = "../cmd/main.go"
+	pathToDockerComposeImage = "compose-kafka-zookeeper.yaml"
+	pathToMainMethod         = "../cmd/main.go"
 )
 
 func (c *ServiceManager) StartKafkaZookeeperContainers() {
 	log.Println("Starting kafka & Zookeeper")
 
-	var cmd = exec.Command("docker-compose", "-f", c.pathDockerComposeKafkaZookeeper, "up", "-d" )
+	var cmd = exec.Command("docker-compose", "-f", c.pathDockerComposeKafkaZookeeper, "up", "-d")
 	if err := cmd.Run(); err != nil {
 		log.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func CreateManager() *ServiceManager {
 func (c *ServiceManager) StartCanary() {
 	log.Println("Starting Canary")
 	c.setUpCanaryParamsViaEnv()
-	myCmd := exec.Command("go", "run",  c.pathToCanaryMain )
+	myCmd := exec.Command("go", "run", c.pathToCanaryMain)
 
 	if err := myCmd.Start(); err != nil {
 		log.Fatal(err.Error())
@@ -80,7 +80,7 @@ func (c *ServiceManager) StartCanary() {
 }
 
 // per se it means waiting for container's broker to communicate correctly
-func (c *ServiceManager) waitForBroker(){
+func (c *ServiceManager) waitForBroker() {
 	log.Println("start waiting for broker")
 	timeout := time.After(10 * time.Second)
 	brokerIsReadyChannel := make(chan bool)
@@ -89,10 +89,9 @@ func (c *ServiceManager) waitForBroker(){
 		configuration := sarama.NewConfig()
 		brokers := []string{c.KafkaBrokerAddress}
 
-		for ;; {
+		for {
 			// if we can create Cluster Admin, broker can communicate
-			_, err := sarama.NewClusterAdmin(brokers, configuration)
-			if err != nil {
+			if _, err := sarama.NewClusterAdmin(brokers, configuration); err != nil {
 				log.Println("waiting for broker's start")
 				time.Sleep(time.Millisecond * 500)
 				continue
@@ -111,10 +110,9 @@ func (c *ServiceManager) waitForBroker(){
 	}
 }
 
-func (c *ServiceManager) setUpCanaryParamsViaEnv(){
+func (c *ServiceManager) setUpCanaryParamsViaEnv() {
 	log.Println("Setting up environment variables")
 	os.Setenv(config.ReconcileIntervalEnvVar, c.ReconcileIntervalTime)
 	os.Setenv(config.TopicEnvVar, c.TopicTestName)
 	os.Setenv(config.BootstrapServersEnvVar, c.KafkaBrokerAddress)
-
 }

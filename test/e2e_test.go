@@ -4,13 +4,14 @@ package test
 
 import (
 	"context"
-	"github.com/Shopify/sarama"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/Shopify/sarama"
 )
 
 const (
@@ -18,12 +19,12 @@ const (
 	metricsEndpoint = "/metrics"
 )
 
-/* test checks for following:
+/*
+*  test checks for following:
 *  the presence of canary topic,
 *  Liveness of topic (messages being produced),
  */
 func TestCanaryTopicLiveness(t *testing.T) {
-
 	log.Println("TestCanaryTopic test starts")
 	consumingHandler := NewConsumerGroupHandler()
 	timeout := time.After(time.Second * 10)
@@ -32,13 +33,13 @@ func TestCanaryTopicLiveness(t *testing.T) {
 	go func() {
 		config := sarama.NewConfig()
 		config.Consumer.Return.Errors = true
-		config.Consumer.Offsets.Initial =  sarama.OffsetOldest
+		config.Consumer.Offsets.Initial = sarama.OffsetOldest
 		ctx := context.Background()
 		clusterAdmin, _ := sarama.NewClusterAdmin([]string{serviceManager.KafkaBrokerAddress}, config)
 
 		var topicPartitionCount int
 		// wait for topic creation
-		for  {
+		for {
 			TopicMetadata, err := clusterAdmin.DescribeTopics([]string{serviceManager.TopicTestName})
 			if err != nil || len(TopicMetadata) != 1 {
 				t.Fatal("Problem communicating with kafka broker")
@@ -76,13 +77,12 @@ func TestCanaryTopicLiveness(t *testing.T) {
 	case <-consumingHandler.consumingDone:
 		log.Println("message received")
 	}
-
 }
 
 func TestEndpointsAvailability(t *testing.T) {
 	log.Println("TestEndpointsAvailability test startss")
 
-	var testInputs = [...]struct{
+	var testInputs = [...]struct {
 		endpoint           string
 		expectedStatusCode int
 	}{
@@ -96,13 +96,13 @@ func TestEndpointsAvailability(t *testing.T) {
 		var completeUrl = httpUrlPrefix + testInput.endpoint
 		resp, err := http.Get(completeUrl)
 		if err != nil {
-			t.Fatalf("Http server unreachable for url: %s",completeUrl  )
+			t.Fatalf("Http server unreachable for url: %s", completeUrl)
 		}
 
 		wantResponseStatus := testInput.expectedStatusCode
 		gotResponseStatus := resp.StatusCode
 		if wantResponseStatus != gotResponseStatus {
-			t.Fatalf("endpoint: %s expected response code: %d obtained: %d" ,completeUrl,wantResponseStatus,gotResponseStatus  )
+			t.Fatalf("endpoint: %s expected response code: %d obtained: %d", completeUrl, wantResponseStatus, gotResponseStatus)
 		}
 		log.Printf("endpoint:  %s, responded with expected status code %d\n", testInput.endpoint, testInput.expectedStatusCode)
 	}
@@ -123,8 +123,8 @@ func TestMetricServerPrometheusContent(t *testing.T) {
 	body2, _ := ioutil.ReadAll(resp2.Body)
 
 	// totalRequestCountT2 stores value produced after defined number of seconds from obtaining totalRequestCountT1
-	totalRequestCountT2, _ :=  strconv.Atoi(parseSucReqRateFromMetrics(string(body2)))
-	if totalRequestCountT2 <= totalRequestCountT1{
+	totalRequestCountT2, _ := strconv.Atoi(parseSucReqRateFromMetrics(string(body2)))
+	if totalRequestCountT2 <= totalRequestCountT1 {
 		t.Errorf("Prometheus metrics are not updated correctly on endpoint  %s", metricsEndpoint)
 	}
 
@@ -135,7 +135,7 @@ func TestMetricServerCanaryContent(t *testing.T) {
 	log.Println("TestMetricServerCanaryContent test starts")
 	// first record is created only after reconcile time, before that there is no record in metrics
 	waitTimeMilliseconds, _ := strconv.Atoi(serviceManager.ReconcileIntervalTime)
-	time.Sleep( time.Duration(waitTimeMilliseconds * 2) * time.Millisecond )
+	time.Sleep(time.Duration(waitTimeMilliseconds*2) * time.Millisecond)
 
 	resp, _ := http.Get(httpUrlPrefix + metricsEndpoint)
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -145,18 +145,16 @@ func TestMetricServerCanaryContent(t *testing.T) {
 	}
 
 	// for update of this data we have to wait with another request for at least reconcile time.
-	time.Sleep( time.Duration(waitTimeMilliseconds * 3) * time.Millisecond )
+	time.Sleep(time.Duration(waitTimeMilliseconds*3) * time.Millisecond)
 
 	resp2, _ := http.Get(httpUrlPrefix + metricsEndpoint)
 	body2, _ := ioutil.ReadAll(resp2.Body)
 
 	// totalProducedRecordsCount2 stores value produced after defined number of seconds from obtaining totalProducedRecordsCount
-	totalProducedRecordsCount2, _ :=  strconv.Atoi(parseCanaryRecordsProducedFromMetrics(string(body2)))
+	totalProducedRecordsCount2, _ := strconv.Atoi(parseCanaryRecordsProducedFromMetrics(string(body2)))
 	log.Println("records produced before first request: ", totalProducedRecordsCount)
 	log.Println("records produced before second request: ", totalProducedRecordsCount2)
 	if totalProducedRecordsCount2 <= totalProducedRecordsCount {
 		t.Errorf("Data are not updated within requested time period on endpoint %s", metricsEndpoint)
 	}
-
 }
-
