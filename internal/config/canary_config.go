@@ -52,7 +52,7 @@ const (
 	ProducerLatencyBucketsDefault      = "100,200,400,800,1600"
 	EndToEndLatencyBucketsDefault      = "100,200,400,800,1600"
 	ExpectedClusterSizeDefault         = -1 // "dynamic" reassignment is enabled
-	KafkaVersionDefault                = "2.7.0"
+	KafkaVersionDefault                = "2.8.0"
 	SaramaLogEnabledDefault            = false
 	VerbosityLogLevelDefault           = 0 // default 0 = INFO, 1 = DEBUG, 2 = TRACE
 	TLSEnabledDefault                  = false
