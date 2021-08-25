@@ -22,7 +22,7 @@ When running the Strimzi canary tool, it is possible to configure different aspe
 * `PRODUCER_LATENCY_BUCKETS`: buckets of the hystogram related to the producer latency metric (in ms). Default `100,200,400,800,1600`.
 * `ENDTOEND_LATENCY_BUCKETS`: buckets of the hystogram related to the end to end latency metric between producer and consumer (in ms). Default `100,200,400,800,1600`.
 * `EXPECTED_CLUSTER_SIZE`: expected number of brokers in the Kafka cluster where the canary connects to. This parameter avoid that the tool runs more partitions reassignment of the topic while the Kafka cluster is starting up and the brokers are coming one by one. Default `-1` means "dynamic" reassignment as described above. When greater than 0, the canary waits for the Kafka cluster having the expected number of brokers running before creating the topic and assigning the partitions.
-* `KAFKA_VERSION`: version of the Kafka cluster. Default `2.7.0`.
+* `KAFKA_VERSION`: version of the Kafka cluster. Default `2.8.0`.
 * `SARAMA_LOG_ENABLED`: enables the Sarama client logging. Default `false`.
 * `VERBOSITY_LOG_LEVEL`: verbosity of the tool logging. Default `0`. Allowed values 0 = INFO, 1 = DEBUG, 2 = TRACE.
 * `TLS_ENABLED`: if the canary has to use TLS to connect to the Kafka cluster. Default `false`.
