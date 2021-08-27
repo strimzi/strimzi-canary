@@ -23,7 +23,11 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.16
+      
+      - name: Unit tests
+        run: |
+          go test ./internal/... --tags=unit_test
 
-      - name: Test
+      - name: E2E tests
         run: |
           go test ./test/... --tags=e2e
