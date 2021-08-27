@@ -26,5 +26,4 @@ jobs:
 
       - name: Test
         run: |
-          cd test/
-          go test --tags=e2e
+          go test ./test/... --tags=e2e
