@@ -26,7 +26,7 @@ When running the Strimzi canary tool, it is possible to configure different aspe
 * `SARAMA_LOG_ENABLED`: enables the Sarama client logging. Default `false`.
 * `VERBOSITY_LOG_LEVEL`: verbosity of the tool logging. Default `0`. Allowed values 0 = INFO, 1 = DEBUG, 2 = TRACE.
 * `TLS_ENABLED`: if the canary has to use TLS to connect to the Kafka cluster. Default `false`.
-* `TLS_CA_CERT`: TLS CA certificate, in PEM format, to use to connect to the Kafka cluster. Default empty.
+* `TLS_CA_CERT`: TLS CA certificate, in PEM format, to use to connect to the Kafka cluster. When this parameter is empty (default behavior) and the TLS connection is enabled, the canary uses the system certificates trust store. When a TLS CA certificate is specified, it is added to the system certificates trust store. 
 * `TLS_CLIENT_CERT`: TLS client certificate, in PEM format, to use for enabling TLS client authentication against the Kafka cluster. Default empty.
 * `TLS_CLIENT_KEY`: TLS client private key, in PEM format, to use for enabling TLS client authentication against the Kafka cluster. Default empty.
 * `TLS_INSECURE_SKIP_VERIFY`:  if the underneath Sarama client has to verify the server's certificate chain and host name. Default `false`.
