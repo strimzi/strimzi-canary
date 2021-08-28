@@ -9,6 +9,7 @@
 package security
 
 import (
+	"crypto/x509"
 	"os"
 	"testing"
 
@@ -18,8 +19,12 @@ import (
 func TestSystemCertsPool(t *testing.T) {
 	os.Setenv(config.TLSEnabledEnvVar, "true")
 	canaryConfig := config.NewCanaryConfig()
-	_, e := NewTLSConfig(canaryConfig)
+	tlsConfig, e := NewTLSConfig(canaryConfig)
 	if e != nil {
+		t.Fail()
+	}
+	systemCertPool, _ := x509.SystemCertPool()
+	if len(tlsConfig.RootCAs.Subjects()) != len(systemCertPool.Subjects()) {
 		t.Fail()
 	}
 }
