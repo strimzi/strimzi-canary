@@ -37,6 +37,7 @@ When running the Strimzi canary tool, it is possible to configure different aspe
 ## Build
 
 The canary repository provides a `Makefile` with different make targets for building the project.
+
 ### Make targets
 
 The available make targets are the following:
