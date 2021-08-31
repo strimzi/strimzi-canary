@@ -33,3 +33,25 @@ When running the Strimzi canary tool, it is possible to configure different aspe
 * `SASL_MECHANISM`: mechanism to use for SASL authentication against the Kafka cluster. Default empty.
 * `SASL_USER`: username for SASL authentication against the Kafka cluster when PLAIN or SCRAM-SHA are used. Default empty.
 * `SASL_PASSWORD`: password for SASL authentication against the Kafka cluster when PLAIN or SCRAM-SHA are used. Default empty..
+
+## Build
+
+The canary repository provides a `Makefile` with different make targets for building the project.
+### Make targets
+
+The available make targets are the following:
+
+* `go_build`: for building the application binary in the `cmd/target` folder.
+* `docker_build`: for building the Docker image.
+* `docker_push`: for pushing the Docker image to a Docker repository.
+* `all`: for running all the previous ones to build the application and then build and push the Docker image.
+* `clean`: to clean the folder where the application binary is built.
+
+### Docker image customization
+
+The make targets used for building and pushing the Docker image use the following environment variables for allowing some degree of customization:
+
+* `DOCKER_REGISTRY`: the Docker registry where the image will be pushed (default is `docker.io`).
+* `DOCKER_ORG`: the Docker organization for tagging/pushing the image (defaults to the value of t.he $USER environment variable).
+* `DOCKER_TAG`: the Docker tag (default is `latest`).
+* `DOCKER_REPO`: the Docker repository where the image will be pushed (default is `canary`).
