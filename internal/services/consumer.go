@@ -96,7 +96,12 @@ func (cs *ConsumerService) Consume() {
 
 				glog.Infof("Consumer group consume starting...")
 				// this method calls the methods handler on each stage: setup, consume and cleanup
-				cs.consumerGroup.Consume(ctx, []string{cs.canaryConfig.Topic}, cgh)
+				err := cs.consumerGroup.Consume(ctx, []string{cs.canaryConfig.Topic}, cgh)
+
+				if err != nil {
+					glog.Infof("Error consuming topic: %v", err.Error())
+					return
+				}
 
 				// check if context was cancelled, because of forcing a refresh metadata or exiting the consumer
 				if ctx.Err() != nil {
