@@ -167,7 +167,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 			"topic": ts.canaryConfig.Topic,
 		}
 		describeTopicError.With(labels).Inc()
-		glog.Errorf("Error retrieving metadata for topic %s: %v", ts.canaryConfig.Topic, topicMetadata.Err.Error())
+		glog.Errorf("Error retrieving metadata for topic %s: %s", ts.canaryConfig.Topic, topicMetadata.Err.Error())
 		return result, topicMetadata.Err
 	}
 
