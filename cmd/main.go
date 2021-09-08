@@ -59,8 +59,9 @@ func main() {
 	topicService := services.NewTopicService(canaryConfig, client)
 	producerService := services.NewProducerService(canaryConfig, client)
 	consumerService := services.NewConsumerService(canaryConfig, client)
+	connectionService := services.NewConnectionService(canaryConfig, client)
 
-	canaryManager := workers.NewCanaryManager(canaryConfig, topicService, producerService, consumerService)
+	canaryManager := workers.NewCanaryManager(canaryConfig, topicService, producerService, consumerService, connectionService)
 	canaryManager.Start()
 
 	sig := <-signals

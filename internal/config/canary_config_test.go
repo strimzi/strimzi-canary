@@ -39,6 +39,9 @@ func TestConfigDefault(t *testing.T) {
 	assertStringConfigParameter(c.SASLMechanism, SASLMechanismDefault, t)
 	assertStringConfigParameter(c.SASLUser, SASLUserDefault, t)
 	assertStringConfigParameter(c.SASLPassword, SASLPasswordDefault, t)
+	assertDurationConfigParameter(c.ConnectionCheckInterval, ConnectionCheckIntervalDefault, t)
+	connectionCheckLatencyBucketsDefault := latencyBuckets(ConnectionCheckLatencyBucketsDefault)
+	assertBucketsConfigParameter(c.ConnectionCheckLatencyBuckets, connectionCheckLatencyBucketsDefault, t)
 }
 
 func TestConfigCustom(t *testing.T) {
@@ -63,6 +66,8 @@ func TestConfigCustom(t *testing.T) {
 	os.Setenv(SASLMechanismEnvVar, "PLAIN")
 	os.Setenv(SASLUserEnvVar, "user")
 	os.Setenv(SASLPasswordEnvVar, "password")
+	os.Setenv(ConnectionCheckIntervalEnvVar, "20000")
+	os.Setenv(ConnectionCheckLatencyBucketsEnvVar, "200,400,800")
 	c := NewCanaryConfig()
 	assertStringConfigParameter(c.BootstrapServers, "my-cluster-kafka:9092", t)
 	assertIntConfigParameter(c.BootstrapBackoffMaxAttempts, 3, t)
@@ -87,6 +92,9 @@ func TestConfigCustom(t *testing.T) {
 	assertStringConfigParameter(c.SASLMechanism, "PLAIN", t)
 	assertStringConfigParameter(c.SASLUser, "user", t)
 	assertStringConfigParameter(c.SASLPassword, "password", t)
+	assertDurationConfigParameter(c.ConnectionCheckInterval, 20000, t)
+	connectionCheckLatencyBuckets := latencyBuckets("200,400,800")
+	assertBucketsConfigParameter(c.ConnectionCheckLatencyBuckets, connectionCheckLatencyBuckets, t)
 }
 
 func assertStringConfigParameter(value string, defaultValue string, t *testing.T) {
