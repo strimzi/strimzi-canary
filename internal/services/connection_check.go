@@ -23,7 +23,7 @@ var (
 		Name:      "connection_error_total",
 		Namespace: "strimzi_canary",
 		Help:      "Total number of errors while checking the connection to Kafka brokers",
-	}, []string{"brokerid"})
+	}, []string{"brokerid", "connected"})
 
 	// it's defined when the service is created because buckets are configurable
 	connectionLatency *prometheus.HistogramVec
@@ -41,11 +41,11 @@ type ConnectionService struct {
 // NewConnectionService returns an instance of ConnectionService
 func NewConnectionService(canaryConfig *config.CanaryConfig, client sarama.Client) *ConnectionService {
 	connectionLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:      "connection_latency",
+		Name:      "connection_success_latency",
 		Namespace: "strimzi_canary",
-		Help:      "Connection latency in milliseconds",
+		Help:      "Latency in milliseconds for established or failed connections",
 		Buckets:   canaryConfig.ConnectionCheckLatencyBuckets,
-	}, []string{"brokerid"})
+	}, []string{"brokerid", "connected"})
 
 	admin, err := sarama.NewClusterAdminFromClient(client)
 	if err != nil {
@@ -122,23 +122,25 @@ func (cs *ConnectionService) connectionCheck() {
 	}
 
 	for _, b := range cs.brokers {
+
 		start := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
 		// ignore error because it will be reported by Connected() call if "not connected"
 		b.Open(cs.client.Config())
+		connected, err := b.Connected()
+		duration := (time.Now().UnixNano() / 1000000) - start
 
 		labels := prometheus.Labels{
-			"brokerid": strconv.Itoa(int(b.ID())),
+			"brokerid":  strconv.Itoa(int(b.ID())),
+			"connected": strconv.FormatBool(connected),
 		}
 
-		if connected, err := b.Connected(); !connected {
-			connectionError.With(labels).Inc()
-			glog.V(1).Infof("Connected broker %d [%t] error [%v]", b.ID(), connected, err)
-		} else {
-			duration := (time.Now().UnixNano() / 1000000) - start
-			connectionLatency.With(labels).Observe(float64(duration))
-			glog.V(1).Infof("Connected broker %d [%t] in [%d] ms", b.ID(), connected, duration)
+		if connected {
 			b.Close()
+		} else {
+			connectionError.With(labels).Inc()
 		}
+		connectionLatency.With(labels).Observe(float64(duration))
+		glog.V(1).Infof("Connection to broker %d [%t] in [%d] ms (error [%v])", b.ID(), connected, duration, err)
 	}
 }
 
