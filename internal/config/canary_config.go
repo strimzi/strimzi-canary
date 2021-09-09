@@ -19,101 +19,109 @@ import (
 
 const (
 	// environment variables declaration
-	BootstrapServersEnvVar            = "KAFKA_BOOTSTRAP_SERVERS"
-	BootstrapBackoffMaxAttemptsEnvVar = "KAFKA_BOOTSTRAP_BACKOFF_MAX_ATTEMPTS"
-	BootstrapBackoffScaleEnvVar       = "KAFKA_BOOTSTRAP_BACKOFF_SCALE"
-	TopicEnvVar                       = "TOPIC"
-	ReconcileIntervalEnvVar           = "RECONCILE_INTERVAL_MS"
-	ClientIDEnvVar                    = "CLIENT_ID"
-	ConsumerGroupIDEnvVar             = "CONSUMER_GROUP_ID"
-	ProducerLatencyBucketsEnvVar      = "PRODUCER_LATENCY_BUCKETS"
-	EndToEndLatencyBucketsEnvVar      = "ENDTOEND_LATENCY_BUCKETS"
-	ExpectedClusterSizeEnvVar         = "EXPECTED_CLUSTER_SIZE"
-	KafkaVersionEnvVar                = "KAFKA_VERSION"
-	SaramaLogEnabledEnvVar            = "SARAMA_LOG_ENABLED"
-	VerbosityLogLevelEnvVar           = "VERBOSITY_LOG_LEVEL"
-	TLSEnabledEnvVar                  = "TLS_ENABLED"
-	TLSCACertEnvVar                   = "TLS_CA_CERT"
-	TLSClientCertEnvVar               = "TLS_CLIENT_CERT"
-	TLSClientKeyEnvVar                = "TLS_CLIENT_KEY"
-	TLSInsecureSkipVerifyEnvVar       = "TLS_INSECURE_SKIP_VERIFY"
-	SASLMechanismEnvVar               = "SASL_MECHANISM"
-	SASLUserEnvVar                    = "SASL_USER"
-	SASLPasswordEnvVar                = "SASL_PASSWORD"
+	BootstrapServersEnvVar              = "KAFKA_BOOTSTRAP_SERVERS"
+	BootstrapBackoffMaxAttemptsEnvVar   = "KAFKA_BOOTSTRAP_BACKOFF_MAX_ATTEMPTS"
+	BootstrapBackoffScaleEnvVar         = "KAFKA_BOOTSTRAP_BACKOFF_SCALE"
+	TopicEnvVar                         = "TOPIC"
+	ReconcileIntervalEnvVar             = "RECONCILE_INTERVAL_MS"
+	ClientIDEnvVar                      = "CLIENT_ID"
+	ConsumerGroupIDEnvVar               = "CONSUMER_GROUP_ID"
+	ProducerLatencyBucketsEnvVar        = "PRODUCER_LATENCY_BUCKETS"
+	EndToEndLatencyBucketsEnvVar        = "ENDTOEND_LATENCY_BUCKETS"
+	ExpectedClusterSizeEnvVar           = "EXPECTED_CLUSTER_SIZE"
+	KafkaVersionEnvVar                  = "KAFKA_VERSION"
+	SaramaLogEnabledEnvVar              = "SARAMA_LOG_ENABLED"
+	VerbosityLogLevelEnvVar             = "VERBOSITY_LOG_LEVEL"
+	TLSEnabledEnvVar                    = "TLS_ENABLED"
+	TLSCACertEnvVar                     = "TLS_CA_CERT"
+	TLSClientCertEnvVar                 = "TLS_CLIENT_CERT"
+	TLSClientKeyEnvVar                  = "TLS_CLIENT_KEY"
+	TLSInsecureSkipVerifyEnvVar         = "TLS_INSECURE_SKIP_VERIFY"
+	SASLMechanismEnvVar                 = "SASL_MECHANISM"
+	SASLUserEnvVar                      = "SASL_USER"
+	SASLPasswordEnvVar                  = "SASL_PASSWORD"
+	ConnectionCheckIntervalEnvVar       = "CONNECTION_CHECK_INTERVAL_MS"
+	ConnectionCheckLatencyBucketsEnvVar = "CONNECTION_CHECK_LATENCY_BUCKETS"
 
 	// default values for environment variables
-	BootstrapServersDefault            = "localhost:9092"
-	BootstrapBackoffMaxAttemptsDefault = 10
-	BootstrapBackoffScaleDefault       = 5000
-	TopicDefault                       = "__strimzi_canary"
-	ReconcileIntervalDefault           = 30000
-	ClientIDDefault                    = "strimzi-canary-client"
-	ConsumerGroupIDDefault             = "strimzi-canary-group"
-	ProducerLatencyBucketsDefault      = "100,200,400,800,1600"
-	EndToEndLatencyBucketsDefault      = "100,200,400,800,1600"
-	ExpectedClusterSizeDefault         = -1 // "dynamic" reassignment is enabled
-	KafkaVersionDefault                = "2.8.0"
-	SaramaLogEnabledDefault            = false
-	VerbosityLogLevelDefault           = 0 // default 0 = INFO, 1 = DEBUG, 2 = TRACE
-	TLSEnabledDefault                  = false
-	TLSCACertDefault                   = ""
-	TLSClientCertDefault               = ""
-	TLSClientKeyDefault                = ""
-	TLSInsecureSkipVerifyDefault       = false
-	SASLMechanismDefault               = ""
-	SASLUserDefault                    = ""
-	SASLPasswordDefault                = ""
+	BootstrapServersDefault              = "localhost:9092"
+	BootstrapBackoffMaxAttemptsDefault   = 10
+	BootstrapBackoffScaleDefault         = 5000
+	TopicDefault                         = "__strimzi_canary"
+	ReconcileIntervalDefault             = 30000
+	ClientIDDefault                      = "strimzi-canary-client"
+	ConsumerGroupIDDefault               = "strimzi-canary-group"
+	ProducerLatencyBucketsDefault        = "100,200,400,800,1600"
+	EndToEndLatencyBucketsDefault        = "100,200,400,800,1600"
+	ExpectedClusterSizeDefault           = -1 // "dynamic" reassignment is enabled
+	KafkaVersionDefault                  = "2.8.0"
+	SaramaLogEnabledDefault              = false
+	VerbosityLogLevelDefault             = 0 // default 0 = INFO, 1 = DEBUG, 2 = TRACE
+	TLSEnabledDefault                    = false
+	TLSCACertDefault                     = ""
+	TLSClientCertDefault                 = ""
+	TLSClientKeyDefault                  = ""
+	TLSInsecureSkipVerifyDefault         = false
+	SASLMechanismDefault                 = ""
+	SASLUserDefault                      = ""
+	SASLPasswordDefault                  = ""
+	ConnectionCheckIntervalDefault       = 120000
+	ConnectionCheckLatencyBucketsDefault = "100,200,400,800,1600"
 )
 
 // CanaryConfig defines the canary tool configuration
 type CanaryConfig struct {
-	BootstrapServers            string
-	BootstrapBackoffMaxAttempts int
-	BootstrapBackoffScale       time.Duration
-	Topic                       string
-	ReconcileInterval           time.Duration
-	ClientID                    string
-	ConsumerGroupID             string
-	ProducerLatencyBuckets      []float64
-	EndToEndLatencyBuckets      []float64
-	ExpectedClusterSize         int
-	KafkaVersion                string
-	SaramaLogEnabled            bool
-	VerbosityLogLevel           int
-	TLSEnabled                  bool
-	TLSCACert                   string
-	TLSClientCert               string
-	TLSClientKey                string
-	TLSInsecureSkipVerify       bool
-	SASLMechanism               string
-	SASLUser                    string
-	SASLPassword                string
+	BootstrapServers              string
+	BootstrapBackoffMaxAttempts   int
+	BootstrapBackoffScale         time.Duration
+	Topic                         string
+	ReconcileInterval             time.Duration
+	ClientID                      string
+	ConsumerGroupID               string
+	ProducerLatencyBuckets        []float64
+	EndToEndLatencyBuckets        []float64
+	ExpectedClusterSize           int
+	KafkaVersion                  string
+	SaramaLogEnabled              bool
+	VerbosityLogLevel             int
+	TLSEnabled                    bool
+	TLSCACert                     string
+	TLSClientCert                 string
+	TLSClientKey                  string
+	TLSInsecureSkipVerify         bool
+	SASLMechanism                 string
+	SASLUser                      string
+	SASLPassword                  string
+	ConnectionCheckInterval       time.Duration
+	ConnectionCheckLatencyBuckets []float64
 }
 
 // NewCanaryConfig returns an configuration instance from environment variables
 func NewCanaryConfig() *CanaryConfig {
 	var config CanaryConfig = CanaryConfig{
-		BootstrapServers:            lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),
-		BootstrapBackoffMaxAttempts: lookupIntEnv(BootstrapBackoffMaxAttemptsEnvVar, BootstrapBackoffMaxAttemptsDefault),
-		BootstrapBackoffScale:       time.Duration(lookupIntEnv(BootstrapBackoffScaleEnvVar, BootstrapBackoffScaleDefault)),
-		Topic:                       lookupStringEnv(TopicEnvVar, TopicDefault),
-		ReconcileInterval:           time.Duration(lookupIntEnv(ReconcileIntervalEnvVar, ReconcileIntervalDefault)),
-		ClientID:                    lookupStringEnv(ClientIDEnvVar, ClientIDDefault),
-		ConsumerGroupID:             lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
-		ProducerLatencyBuckets:      latencyBuckets(lookupStringEnv(ProducerLatencyBucketsEnvVar, ProducerLatencyBucketsDefault)),
-		EndToEndLatencyBuckets:      latencyBuckets(lookupStringEnv(EndToEndLatencyBucketsEnvVar, EndToEndLatencyBucketsDefault)),
-		ExpectedClusterSize:         lookupIntEnv(ExpectedClusterSizeEnvVar, ExpectedClusterSizeDefault),
-		KafkaVersion:                lookupStringEnv(KafkaVersionEnvVar, KafkaVersionDefault),
-		SaramaLogEnabled:            lookupBoolEnv(SaramaLogEnabledEnvVar, SaramaLogEnabledDefault),
-		VerbosityLogLevel:           lookupIntEnv(VerbosityLogLevelEnvVar, VerbosityLogLevelDefault),
-		TLSEnabled:                  lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
-		TLSCACert:                   lookupStringEnv(TLSCACertEnvVar, TLSCACertDefault),
-		TLSClientCert:               lookupStringEnv(TLSClientCertEnvVar, TLSClientCertDefault),
-		TLSClientKey:                lookupStringEnv(TLSClientKeyEnvVar, TLSClientKeyDefault),
-		TLSInsecureSkipVerify:       lookupBoolEnv(TLSInsecureSkipVerifyEnvVar, TLSInsecureSkipVerifyDefault),
-		SASLMechanism:               lookupStringEnv(SASLMechanismEnvVar, SASLMechanismDefault),
-		SASLUser:                    lookupStringEnv(SASLUserEnvVar, SASLUserDefault),
-		SASLPassword:                lookupStringEnv(SASLPasswordEnvVar, SASLPasswordDefault),
+		BootstrapServers:              lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),
+		BootstrapBackoffMaxAttempts:   lookupIntEnv(BootstrapBackoffMaxAttemptsEnvVar, BootstrapBackoffMaxAttemptsDefault),
+		BootstrapBackoffScale:         time.Duration(lookupIntEnv(BootstrapBackoffScaleEnvVar, BootstrapBackoffScaleDefault)),
+		Topic:                         lookupStringEnv(TopicEnvVar, TopicDefault),
+		ReconcileInterval:             time.Duration(lookupIntEnv(ReconcileIntervalEnvVar, ReconcileIntervalDefault)),
+		ClientID:                      lookupStringEnv(ClientIDEnvVar, ClientIDDefault),
+		ConsumerGroupID:               lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
+		ProducerLatencyBuckets:        latencyBuckets(lookupStringEnv(ProducerLatencyBucketsEnvVar, ProducerLatencyBucketsDefault)),
+		EndToEndLatencyBuckets:        latencyBuckets(lookupStringEnv(EndToEndLatencyBucketsEnvVar, EndToEndLatencyBucketsDefault)),
+		ExpectedClusterSize:           lookupIntEnv(ExpectedClusterSizeEnvVar, ExpectedClusterSizeDefault),
+		KafkaVersion:                  lookupStringEnv(KafkaVersionEnvVar, KafkaVersionDefault),
+		SaramaLogEnabled:              lookupBoolEnv(SaramaLogEnabledEnvVar, SaramaLogEnabledDefault),
+		VerbosityLogLevel:             lookupIntEnv(VerbosityLogLevelEnvVar, VerbosityLogLevelDefault),
+		TLSEnabled:                    lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
+		TLSCACert:                     lookupStringEnv(TLSCACertEnvVar, TLSCACertDefault),
+		TLSClientCert:                 lookupStringEnv(TLSClientCertEnvVar, TLSClientCertDefault),
+		TLSClientKey:                  lookupStringEnv(TLSClientKeyEnvVar, TLSClientKeyDefault),
+		TLSInsecureSkipVerify:         lookupBoolEnv(TLSInsecureSkipVerifyEnvVar, TLSInsecureSkipVerifyDefault),
+		SASLMechanism:                 lookupStringEnv(SASLMechanismEnvVar, SASLMechanismDefault),
+		SASLUser:                      lookupStringEnv(SASLUserEnvVar, SASLUserDefault),
+		SASLPassword:                  lookupStringEnv(SASLPasswordEnvVar, SASLPasswordDefault),
+		ConnectionCheckInterval:       time.Duration(lookupIntEnv(ConnectionCheckIntervalEnvVar, ConnectionCheckIntervalDefault)),
+		ConnectionCheckLatencyBuckets: latencyBuckets(lookupStringEnv(ConnectionCheckLatencyBucketsEnvVar, ConnectionCheckLatencyBucketsDefault)),
 	}
 	return &config
 }
@@ -189,8 +197,9 @@ func (c CanaryConfig) String() string {
 	return fmt.Sprintf("{BootstrapServers:%s, BootstrapBackoffMaxAttempts:%d, BootstrapBackoffScale:%d, Topic:%s, ReconcileInterval:%d ms, "+
 		"ClientID:%s, ConsumerGroupID:%s, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d, KafkaVersion:%s,"+
 		"SaramaLogEnabled:%t, VerbosityLogLevel:%d, TLSEnabled:%t, TLSCACert:%s, TLSClientCert:%s, TLSClientKey:%s, TLSInsecureSkipVerify:%t,"+
-		"SASLMechanism:%s, SASLUser:%s, SASLPassword:%s}",
+		"SASLMechanism:%s, SASLUser:%s, SASLPassword:%s, ConnectionCheckInterval:%d ms, ConnectionCheckLatencyBuckets:%v}",
 		c.BootstrapServers, c.BootstrapBackoffMaxAttempts, c.BootstrapBackoffScale, c.Topic, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
 		c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion, c.SaramaLogEnabled, c.VerbosityLogLevel,
-		c.TLSEnabled, TLSCACert, TLSClientCert, TLSClientKey, c.TLSInsecureSkipVerify, c.SASLMechanism, SASLUser, SASLPassword)
+		c.TLSEnabled, TLSCACert, TLSClientCert, TLSClientKey, c.TLSInsecureSkipVerify, c.SASLMechanism, SASLUser, SASLPassword,
+		c.ConnectionCheckInterval, c.ConnectionCheckLatencyBuckets)
 }

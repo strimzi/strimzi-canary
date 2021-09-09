@@ -19,12 +19,13 @@ import (
 
 // CanaryManager defines the manager driving the different producer, consumer and topic services
 type CanaryManager struct {
-	canaryConfig    *config.CanaryConfig
-	topicService    *services.TopicService
-	producerService *services.ProducerService
-	consumerService *services.ConsumerService
-	stop            chan struct{}
-	syncStop        sync.WaitGroup
+	canaryConfig      *config.CanaryConfig
+	topicService      *services.TopicService
+	producerService   *services.ProducerService
+	consumerService   *services.ConsumerService
+	connectionService *services.ConnectionService
+	stop              chan struct{}
+	syncStop          sync.WaitGroup
 }
 
 var (
@@ -36,12 +37,15 @@ var (
 )
 
 // NewCanaryManager returns an instance of the cananry manager worker
-func NewCanaryManager(canaryConfig *config.CanaryConfig, topicService *services.TopicService, producerService *services.ProducerService, consumerService *services.ConsumerService) Worker {
+func NewCanaryManager(canaryConfig *config.CanaryConfig,
+	topicService *services.TopicService, producerService *services.ProducerService,
+	consumerService *services.ConsumerService, connectionService *services.ConnectionService) Worker {
 	cm := CanaryManager{
-		canaryConfig:    canaryConfig,
-		topicService:    topicService,
-		producerService: producerService,
-		consumerService: consumerService,
+		canaryConfig:      canaryConfig,
+		topicService:      topicService,
+		producerService:   producerService,
+		consumerService:   consumerService,
+		connectionService: connectionService,
 	}
 	return &cm
 }
@@ -52,6 +56,8 @@ func (cm *CanaryManager) Start() {
 
 	cm.stop = make(chan struct{})
 	cm.syncStop.Add(1)
+
+	cm.connectionService.Open()
 
 	// using the same bootstrap configuration that makes sense during the canary start up
 	backoff := services.NewBackoff(cm.canaryConfig.BootstrapBackoffMaxAttempts, cm.canaryConfig.BootstrapBackoffScale*time.Millisecond, services.MaxDefault)
@@ -104,6 +110,7 @@ func (cm *CanaryManager) Stop() {
 	cm.producerService.Close()
 	cm.consumerService.Close()
 	cm.topicService.Close()
+	cm.connectionService.Close()
 
 	glog.Infof("Canary manager closed")
 }
