@@ -90,7 +90,7 @@ func (ps *ProducerService) Send(partitionsAssignments map[int32][]int32) {
 		}
 		recordsProduced.With(labels).Inc()
 		if err != nil {
-			glog.Warningf("Erros sending message: %v", err)
+			glog.Warningf("Error sending message: %v", err)
 			recordsProducedFailed.With(labels).Inc()
 		} else {
 			duration := timestamp - cm.Timestamp

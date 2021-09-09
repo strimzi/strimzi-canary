@@ -138,8 +138,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 			// not creating the topic and returning error to avoid starting producer/consumer
 			return result, &ErrExpectedClusterSize{}
 		}
-
-	} else {
+	} else if topicMetadata.Err == sarama.ErrNoError {
 		// canary topic already exists, check replicas assignments
 		glog.V(1).Infof("The canary topic %s already exists", topicMetadata.Name)
 		logTopicMetadata(topicMetadata)
@@ -163,8 +162,15 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 		} else {
 			result.Assignments = ts.currentAssignments(topicMetadata)
 		}
-
+	} else {
+		labels := prometheus.Labels{
+			"topic": ts.canaryConfig.Topic,
+		}
+		describeTopicError.With(labels).Inc()
+		glog.Errorf("Error retrieving metadata for topic %s: %s", ts.canaryConfig.Topic, topicMetadata.Err.Error())
+		return result, topicMetadata.Err
 	}
+
 	ts.initialized = true
 	return result, err
 }
