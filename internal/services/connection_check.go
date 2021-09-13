@@ -16,6 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
+	"github.com/strimzi/strimzi-canary/internal/util"
 )
 
 var (
@@ -123,11 +124,11 @@ func (cs *ConnectionService) connectionCheck() {
 
 	for _, b := range cs.brokers {
 
-		start := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
+		start := util.NowInMilliseconds() // timestamp in milliseconds
 		// ignore error because it will be reported by Connected() call if "not connected"
 		b.Open(cs.client.Config())
 		connected, err := b.Connected()
-		duration := (time.Now().UnixNano() / 1000000) - start
+		duration := util.NowInMilliseconds() - start
 
 		labels := prometheus.Labels{
 			"brokerid":  strconv.Itoa(int(b.ID())),

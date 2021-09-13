@@ -16,6 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
+	"github.com/strimzi/strimzi-canary/internal/util"
 )
 
 const (
@@ -180,7 +181,7 @@ func (cgh *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSessio
 	glog.Infof("Consumer group consumeclaim on %s [%d]", claim.Topic(), claim.Partition())
 
 	for message := range claim.Messages() {
-		timestamp := time.Now().UnixNano() / 1000000 // timestamp in milliseconds
+		timestamp := util.NowInMilliseconds() // timestamp in milliseconds
 		cm := NewCanaryMessage(message.Value)
 		duration := timestamp - cm.Timestamp
 		glog.V(1).Infof("Message received: value=%+v, partition=%d, offset=%d, duration=%d ms", cm, message.Partition, message.Offset, duration)
