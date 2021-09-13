@@ -124,11 +124,11 @@ func (cs *ConnectionService) connectionCheck() {
 
 	for _, b := range cs.brokers {
 
-		start := util.NowToMilliseconds() // timestamp in milliseconds
+		start := util.NowInMilliseconds() // timestamp in milliseconds
 		// ignore error because it will be reported by Connected() call if "not connected"
 		b.Open(cs.client.Config())
 		connected, err := b.Connected()
-		duration := util.NowToMilliseconds() - start
+		duration := util.NowInMilliseconds() - start
 
 		labels := prometheus.Labels{
 			"brokerid":  strconv.Itoa(int(b.ID())),

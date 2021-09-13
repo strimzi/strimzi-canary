@@ -83,7 +83,7 @@ func (ps *ProducerService) Send(partitionsAssignments map[int32][]int32) {
 		msg.Partition = int32(i)
 		glog.V(1).Infof("Sending message: value=%s on partition=%d", msg.Value, msg.Partition)
 		partition, offset, err := ps.producer.SendMessage(msg)
-		timestamp := util.NowToMilliseconds() // timestamp in milliseconds
+		timestamp := util.NowInMilliseconds() // timestamp in milliseconds
 		labels := prometheus.Labels{
 			"clientid":  ps.canaryConfig.ClientID,
 			"partition": strconv.Itoa(i),
@@ -124,7 +124,7 @@ func (ps *ProducerService) Close() {
 
 func (ps *ProducerService) newCanaryMessage() CanaryMessage {
 	ps.index++
-	timestamp := util.NowToMilliseconds() // timestamp in milliseconds
+	timestamp := util.NowInMilliseconds() // timestamp in milliseconds
 	cm := CanaryMessage{
 		ProducerID: ps.canaryConfig.ClientID,
 		MessageID:  ps.index,

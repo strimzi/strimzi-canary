@@ -8,7 +8,7 @@ package util
 
 import "time"
 
-// NowToMilliseconds returns the current time in milliseconds
-func NowToMilliseconds() int64 {
+// NowInMilliseconds returns the current time in milliseconds
+func NowInMilliseconds() int64 {
 	return time.Now().UnixNano() / 1000000
 }
