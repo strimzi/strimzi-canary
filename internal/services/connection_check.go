@@ -137,11 +137,12 @@ func (cs *ConnectionService) connectionCheck() {
 
 		if connected {
 			b.Close()
+			glog.V(1).Infof("Connected to broker %d in %d ms", b.ID(), duration)
 		} else {
 			connectionError.With(labels).Inc()
+			glog.Errorf("Error connecting to broker %d in %d ms (error [%v])", b.ID(), duration, err)
 		}
 		connectionLatency.With(labels).Observe(float64(duration))
-		glog.V(1).Infof("Connection to broker %d [%t] in [%d] ms (error [%v])", b.ID(), connected, duration, err)
 	}
 }
 
