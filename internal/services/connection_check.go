@@ -42,7 +42,7 @@ type ConnectionService struct {
 // NewConnectionService returns an instance of ConnectionService
 func NewConnectionService(canaryConfig *config.CanaryConfig, client sarama.Client) *ConnectionService {
 	connectionLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:      "connection_success_latency",
+		Name:      "connection_latency",
 		Namespace: "strimzi_canary",
 		Help:      "Latency in milliseconds for established or failed connections",
 		Buckets:   canaryConfig.ConnectionCheckLatencyBuckets,
