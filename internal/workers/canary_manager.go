@@ -79,7 +79,7 @@ func (cm *CanaryManager) Start() {
 			glog.Warningf("Error on expected cluster size. Retrying in %d ms", delay.Milliseconds())
 			time.Sleep(delay)
 		} else {
-			glog.Fatalf("Error starting manager: %v", err)
+			glog.Fatalf("Error starting canary manager: %v", err)
 		}
 	}
 
