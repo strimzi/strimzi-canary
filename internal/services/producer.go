@@ -108,7 +108,7 @@ func (ps *ProducerService) Refresh() {
 			"clientid": ps.canaryConfig.ClientID,
 		}
 		refreshMetadataError.With(labels).Inc()
-		glog.Errorf("Errors producer refreshing metadata: %v", err)
+		glog.Errorf("Error refreshing metadata in producer: %v", err)
 	}
 }
 

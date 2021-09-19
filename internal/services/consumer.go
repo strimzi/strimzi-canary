@@ -39,7 +39,7 @@ var (
 	timeoutJoinGroup = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name:      "consumer_timeout_join_group_total",
 		Namespace: "strimzi_canary",
-		Help:      "The total number of consumer not joining the group within the timeout",
+		Help:      "The total number of consumers not joining the group within the timeout",
 	}, []string{"clientid"})
 )
 
