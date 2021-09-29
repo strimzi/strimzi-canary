@@ -157,7 +157,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 				glog.Errorf("Error altering topic %s: %v", topicMetadata.Name, err)
 				return result, err
 			}
-			ts.checkTopic(len(brokers), topicMetadata)
+			ts.isPreferredLeaderElectionNeeded(len(brokers), topicMetadata)
 			// TODO force a leader election. The feature is missing in Sarama library right now.
 		} else {
 			result.Assignments = ts.currentAssignments(topicMetadata)
@@ -230,7 +230,7 @@ func (ts *TopicService) alterTopicAssignments(currentPartitions int, brokers []*
 	return assignmentsMap, err
 }
 
-func (ts *TopicService) checkTopic(brokersNumber int, metadata *sarama.TopicMetadata) {
+func (ts *TopicService) isPreferredLeaderElectionNeeded(brokersNumber int, metadata *sarama.TopicMetadata) {
 	electLeader := false
 	if len(metadata.Partitions) == brokersNumber {
 		for _, p := range metadata.Partitions {
