@@ -53,10 +53,10 @@ var (
 		Help:      "Total number of errors while getting canary topic metadata",
 	}, []string{"topic"})
 
-	alterTopicError = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "topic_alter_error_total",
+	alterTopicAssignmentsError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "topic_alter_assignments_error_total",
 		Namespace: "strimzi_canary",
-		Help:      "Total number of errors while altering canary topic",
+		Help:      "Total number of errors while altering partitions assignments for the canary topic",
 	}, []string{"topic"})
 )
 
@@ -149,15 +149,15 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 
 			glog.Infof("Going to alter topic and reassigning partitions if needed")
 			result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
-			if result.Assignments, err = ts.alterTopic(len(topicMetadata.Partitions), brokers); err != nil {
+			if result.Assignments, err = ts.alterTopicAssignments(len(topicMetadata.Partitions), brokers); err != nil {
 				labels := prometheus.Labels{
 					"topic": topicMetadata.Name,
 				}
-				alterTopicError.With(labels).Inc()
+				alterTopicAssignmentsError.With(labels).Inc()
 				glog.Errorf("Error altering topic %s: %v", topicMetadata.Name, err)
 				return result, err
 			}
-			ts.checkTopic(len(brokers), topicMetadata)
+			ts.isPreferredLeaderElectionNeeded(len(brokers), topicMetadata)
 			// TODO force a leader election. The feature is missing in Sarama library right now.
 		} else {
 			result.Assignments = ts.currentAssignments(topicMetadata)
@@ -203,7 +203,7 @@ func (ts *TopicService) createTopic(brokers []*sarama.Broker) (map[int32][]int32
 	return assignments, err
 }
 
-func (ts *TopicService) alterTopic(currentPartitions int, brokers []*sarama.Broker) (map[int32][]int32, error) {
+func (ts *TopicService) alterTopicAssignments(currentPartitions int, brokers []*sarama.Broker) (map[int32][]int32, error) {
 	brokersNumber := len(brokers)
 	assignmentsMap, _ := ts.requestedAssignments(currentPartitions, brokers)
 
@@ -230,7 +230,7 @@ func (ts *TopicService) alterTopic(currentPartitions int, brokers []*sarama.Brok
 	return assignmentsMap, err
 }
 
-func (ts *TopicService) checkTopic(brokersNumber int, metadata *sarama.TopicMetadata) {
+func (ts *TopicService) isPreferredLeaderElectionNeeded(brokersNumber int, metadata *sarama.TopicMetadata) {
 	electLeader := false
 	if len(metadata.Partitions) == brokersNumber {
 		for _, p := range metadata.Partitions {
