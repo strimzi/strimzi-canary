@@ -58,6 +58,12 @@ var (
 		Namespace: "strimzi_canary",
 		Help:      "Total number of errors while altering partitions assignments for the canary topic",
 	}, []string{"topic"})
+
+	alterTopicConfigurationError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "topic_alter_configuration_error_total",
+		Namespace: "strimzi_canary",
+		Help:      "Total number of errors while altering configuration for the canary topic",
+	}, []string{"topic"})
 )
 
 // ErrExpectedClusterSize defines the error raised when the expected cluster size is not met
@@ -139,22 +145,34 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 			return result, &ErrExpectedClusterSize{}
 		}
 	} else if topicMetadata.Err == sarama.ErrNoError {
-		// canary topic already exists, check replicas assignments
+		// canary topic already exists
 		glog.V(1).Infof("The canary topic %s already exists", topicMetadata.Name)
 		logTopicMetadata(topicMetadata)
+
+		// topic exists so altering the configuration with the provided one (only at startup)
+		if !ts.initialized {
+			if err := ts.alterTopicConfiguration(); err != nil {
+				labels := prometheus.Labels{
+					"topic": topicMetadata.Name,
+				}
+				alterTopicConfigurationError.With(labels).Inc()
+				glog.Errorf("Error altering topic configuration %s: %v", topicMetadata.Name, err)
+				return result, err
+			}
+		}
 
 		// topic partitions reassignment happens if "dynamic" reassignment is enabled
 		// or the topic service is just starting up with the expected number of brokers
 		if ts.isDynamicReassignmentEnabled() || (!ts.initialized && ts.canaryConfig.ExpectedClusterSize == len(brokers)) {
 
-			glog.Infof("Going to alter topic and reassigning partitions if needed")
+			glog.Infof("Going to reassigning topic partitions if needed")
 			result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
 			if result.Assignments, err = ts.alterTopicAssignments(len(topicMetadata.Partitions), brokers); err != nil {
 				labels := prometheus.Labels{
 					"topic": topicMetadata.Name,
 				}
 				alterTopicAssignmentsError.With(labels).Inc()
-				glog.Errorf("Error altering topic %s: %v", topicMetadata.Name, err)
+				glog.Errorf("Error reassigning partitions for topic %s: %v", topicMetadata.Name, err)
 				return result, err
 			}
 			ts.isPreferredLeaderElectionNeeded(len(brokers), topicMetadata)
@@ -185,13 +203,28 @@ func (ts *TopicService) Close() {
 	glog.Infof("Topic service closed")
 }
 
+func (ts *TopicService) alterTopicConfiguration() error {
+	topicConfig := make(map[string]*string, len(ts.canaryConfig.TopicConfig))
+	for index, param := range ts.canaryConfig.TopicConfig {
+		p := param
+		topicConfig[index] = &p
+	}
+	if len(topicConfig) != 0 {
+		return ts.admin.AlterConfig(sarama.TopicResource, ts.canaryConfig.Topic, topicConfig, false)
+	}
+	return nil
+}
+
 func (ts *TopicService) createTopic(brokers []*sarama.Broker) (map[int32][]int32, error) {
 	assignments, minISR := ts.requestedAssignments(0, brokers)
 
 	v := strconv.Itoa(int(minISR))
-	topicConfig := map[string]*string{
-		"min.insync.replicas": &v,
+	topicConfig := make(map[string]*string, len(ts.canaryConfig.TopicConfig))
+	for index, param := range ts.canaryConfig.TopicConfig {
+		p := param
+		topicConfig[index] = &p
 	}
+	topicConfig["min.insync.replicas"] = &v
 
 	topicDetail := sarama.TopicDetail{
 		NumPartitions:     -1,
