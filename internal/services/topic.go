@@ -165,7 +165,7 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 		// or the topic service is just starting up with the expected number of brokers
 		if ts.isDynamicReassignmentEnabled() || (!ts.initialized && ts.canaryConfig.ExpectedClusterSize == len(brokers)) {
 
-			glog.Infof("Going to reassigning topic partitions if needed")
+			glog.Infof("Going to reassign topic partitions if needed")
 			result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
 			if result.Assignments, err = ts.alterTopicAssignments(len(topicMetadata.Partitions), brokers); err != nil {
 				labels := prometheus.Labels{
