@@ -16,7 +16,7 @@ When running the Strimzi canary tool, it is possible to configure different aspe
 * `KAFKA_BOOTSTRAP_BACKOFF_MAX_ATTEMPTS`: maximum numeber of attempts for connecting to the Kafka cluster if it is not ready yet. Defualt `10`.
 * `KAFKA_BOOTSTRAP_BACKOFF_SCALE`: the scale used to delay between attempts to connect to the Kafka cluster (in ms). Default `5000`.
 * `TOPIC`: the name of the topic used by the tool to send and receive messages. Default `__strimzi_canary`.
-* `TOPIC_CONFIG`: topic configuration defined as `key=value` pairs separated by semicolon (i.e. `retention.ms=600000;segment.bytes=16384`). Default empty.
+* `TOPIC_CONFIG`: topic configuration defined as a list of comma separated `key=value` pairs (i.e. `retention.ms=600000,segment.bytes=16384`). Default empty.
 * `RECONCILE_INTERVAL_MS`: it defines how often the tool has to send and receive messages (in ms). Default `30000`.
 * `CLIENT_ID`: the client id used for configuring producer and consumer. Default `strimzi-canary-client`.
 * `CONSUMER_GROUP_ID`: group id for the consumer group joined by the canary consumer. Default `strimzi-canary-group`.
