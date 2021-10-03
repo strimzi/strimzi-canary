@@ -104,7 +104,7 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 
 	backoff := services.NewBackoff(canaryConfig.BootstrapBackoffMaxAttempts, canaryConfig.BootstrapBackoffScale*time.Millisecond, services.MaxDefault)
 	for {
-		client, clientErr := sarama.NewClient([]string{canaryConfig.BootstrapServers}, config)
+		client, clientErr := sarama.NewClient(canaryConfig.BootstrapServers, config)
 		if clientErr == nil {
 			return client, nil
 		}
