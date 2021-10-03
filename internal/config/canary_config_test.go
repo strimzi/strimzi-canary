@@ -10,13 +10,15 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
 
 func TestConfigDefault(t *testing.T) {
 	c := NewCanaryConfig()
-	assertStringConfigParameter(c.BootstrapServers, BootstrapServersDefault, t)
+	bootstrapServersDefault := strings.Split(BootstrapServersDefault, ",")
+	assertStringSlicesConfigParameter(c.BootstrapServers, bootstrapServersDefault, t)
 	assertIntConfigParameter(c.BootstrapBackoffMaxAttempts, BootstrapBackoffMaxAttemptsDefault, t)
 	assertDurationConfigParameter(c.BootstrapBackoffScale, BootstrapBackoffScaleDefault, t)
 	assertStringConfigParameter(c.Topic, TopicDefault, t)
@@ -45,7 +47,7 @@ func TestConfigDefault(t *testing.T) {
 }
 
 func TestConfigCustom(t *testing.T) {
-	os.Setenv(BootstrapServersEnvVar, "my-cluster-kafka:9092")
+	os.Setenv(BootstrapServersEnvVar, "my-cluster-kafka:9092,my-cluster-kafka:9093")
 	os.Setenv(BootstrapBackoffMaxAttemptsEnvVar, "3")
 	os.Setenv(BootstrapBackoffScaleEnvVar, "1000")
 	os.Setenv(TopicEnvVar, "my-strimzi-canary-topic")
@@ -69,7 +71,8 @@ func TestConfigCustom(t *testing.T) {
 	os.Setenv(ConnectionCheckIntervalEnvVar, "20000")
 	os.Setenv(ConnectionCheckLatencyBucketsEnvVar, "200,400,800")
 	c := NewCanaryConfig()
-	assertStringConfigParameter(c.BootstrapServers, "my-cluster-kafka:9092", t)
+	bootstrapServers := strings.Split("my-cluster-kafka:9092,my-cluster-kafka:9093", ",")
+	assertStringSlicesConfigParameter(c.BootstrapServers, bootstrapServers, t)
 	assertIntConfigParameter(c.BootstrapBackoffMaxAttempts, 3, t)
 	assertDurationConfigParameter(c.BootstrapBackoffScale, 1000, t)
 	assertStringConfigParameter(c.Topic, "my-strimzi-canary-topic", t)
@@ -95,6 +98,17 @@ func TestConfigCustom(t *testing.T) {
 	assertDurationConfigParameter(c.ConnectionCheckInterval, 20000, t)
 	connectionCheckLatencyBuckets := latencyBuckets("200,400,800")
 	assertBucketsConfigParameter(c.ConnectionCheckLatencyBuckets, connectionCheckLatencyBuckets, t)
+}
+
+func assertStringSlicesConfigParameter(value []string, defaultValue []string, t *testing.T) {
+	if len(value) != len(defaultValue) {
+		t.Errorf("Different lengths got = %d, want = %d", len(value), len(defaultValue))
+	}
+	for i, v := range value {
+		if v != defaultValue[i] {
+			t.Errorf("got = %s, want = %s", value, defaultValue)
+		}
+	}
 }
 
 func assertStringConfigParameter(value string, defaultValue string, t *testing.T) {

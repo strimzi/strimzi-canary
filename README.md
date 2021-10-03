@@ -12,7 +12,7 @@ This is achieved by creating a canary topic and periodically producing and consu
 
 When running the Strimzi canary tool, it is possible to configure different aspects by using the following environment variables.
 
-* `KAFKA_BOOTSTRAP_SERVERS`: the bootstrap servers list for the Kafka cluster to connect to. Default `localhost:9092`.
+* `KAFKA_BOOTSTRAP_SERVERS`: comma separated bootstrap servers of the Kafka cluster to connect to. Default `localhost:9092`.
 * `KAFKA_BOOTSTRAP_BACKOFF_MAX_ATTEMPTS`: maximum numeber of attempts for connecting to the Kafka cluster if it is not ready yet. Defualt `10`.
 * `KAFKA_BOOTSTRAP_BACKOFF_SCALE`: the scale used to delay between attempts to connect to the Kafka cluster (in ms). Default `5000`.
 * `TOPIC`: the name of the topic used by the tool to send and receive messages. Default `__strimzi_canary`.

@@ -71,7 +71,7 @@ const (
 
 // CanaryConfig defines the canary tool configuration
 type CanaryConfig struct {
-	BootstrapServers              string
+	BootstrapServers              []string
 	BootstrapBackoffMaxAttempts   int
 	BootstrapBackoffScale         time.Duration
 	Topic                         string
@@ -99,7 +99,7 @@ type CanaryConfig struct {
 // NewCanaryConfig returns an configuration instance from environment variables
 func NewCanaryConfig() *CanaryConfig {
 	var config CanaryConfig = CanaryConfig{
-		BootstrapServers:              lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault),
+		BootstrapServers:              strings.Split(lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault), ","),
 		BootstrapBackoffMaxAttempts:   lookupIntEnv(BootstrapBackoffMaxAttemptsEnvVar, BootstrapBackoffMaxAttemptsDefault),
 		BootstrapBackoffScale:         time.Duration(lookupIntEnv(BootstrapBackoffScaleEnvVar, BootstrapBackoffScaleDefault)),
 		Topic:                         lookupStringEnv(TopicEnvVar, TopicDefault),
