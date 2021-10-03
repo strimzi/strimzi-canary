@@ -100,7 +100,7 @@ type CanaryConfig struct {
 	ConnectionCheckLatencyBuckets []float64
 }
 
-var topicConfigRegex = regexp.MustCompile(`([\w\.]+)=([\w,]+)`)
+var topicConfigRegex = regexp.MustCompile(`([\w\.]+)=([\w,]+)(?:;|$)`)
 
 // NewCanaryConfig returns an configuration instance from environment variables
 func NewCanaryConfig() *CanaryConfig {
