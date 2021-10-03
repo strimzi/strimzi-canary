@@ -47,7 +47,7 @@ func TestConfigDefault(t *testing.T) {
 }
 
 func TestConfigCustom(t *testing.T) {
-	os.Setenv(BootstrapServersEnvVar, "my-cluster-kafka:9092,my-cluster-kafka:9093")
+	os.Setenv(BootstrapServersEnvVar, "kafka-broker-1:9092,kafka-broker-2:9092")
 	os.Setenv(BootstrapBackoffMaxAttemptsEnvVar, "3")
 	os.Setenv(BootstrapBackoffScaleEnvVar, "1000")
 	os.Setenv(TopicEnvVar, "my-strimzi-canary-topic")
@@ -71,7 +71,7 @@ func TestConfigCustom(t *testing.T) {
 	os.Setenv(ConnectionCheckIntervalEnvVar, "20000")
 	os.Setenv(ConnectionCheckLatencyBucketsEnvVar, "200,400,800")
 	c := NewCanaryConfig()
-	bootstrapServers := strings.Split("my-cluster-kafka:9092,my-cluster-kafka:9093", ",")
+	bootstrapServers := strings.Split("kafka-broker-1:9092,kafka-broker-2:9092", ",")
 	assertStringSlicesConfigParameter(c.BootstrapServers, bootstrapServers, t)
 	assertIntConfigParameter(c.BootstrapBackoffMaxAttempts, 3, t)
 	assertDurationConfigParameter(c.BootstrapBackoffScale, 1000, t)
