@@ -9,6 +9,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ const (
 	BootstrapBackoffMaxAttemptsEnvVar   = "KAFKA_BOOTSTRAP_BACKOFF_MAX_ATTEMPTS"
 	BootstrapBackoffScaleEnvVar         = "KAFKA_BOOTSTRAP_BACKOFF_SCALE"
 	TopicEnvVar                         = "TOPIC"
+	TopicConfigEnvVar                   = "TOPIC_CONFIG"
 	ReconcileIntervalEnvVar             = "RECONCILE_INTERVAL_MS"
 	ClientIDEnvVar                      = "CLIENT_ID"
 	ConsumerGroupIDEnvVar               = "CONSUMER_GROUP_ID"
@@ -48,6 +50,7 @@ const (
 	BootstrapBackoffMaxAttemptsDefault   = 10
 	BootstrapBackoffScaleDefault         = 5000
 	TopicDefault                         = "__strimzi_canary"
+	TopicConfigDefault                   = ""
 	ReconcileIntervalDefault             = 30000
 	ClientIDDefault                      = "strimzi-canary-client"
 	ConsumerGroupIDDefault               = "strimzi-canary-group"
@@ -75,6 +78,7 @@ type CanaryConfig struct {
 	BootstrapBackoffMaxAttempts   int
 	BootstrapBackoffScale         time.Duration
 	Topic                         string
+	TopicConfig                   map[string]string
 	ReconcileInterval             time.Duration
 	ClientID                      string
 	ConsumerGroupID               string
@@ -96,6 +100,8 @@ type CanaryConfig struct {
 	ConnectionCheckLatencyBuckets []float64
 }
 
+var topicConfigRegex = regexp.MustCompile(`([\w\.]+)=([\w,]+)`)
+
 // NewCanaryConfig returns an configuration instance from environment variables
 func NewCanaryConfig() *CanaryConfig {
 	var config CanaryConfig = CanaryConfig{
@@ -103,6 +109,7 @@ func NewCanaryConfig() *CanaryConfig {
 		BootstrapBackoffMaxAttempts:   lookupIntEnv(BootstrapBackoffMaxAttemptsEnvVar, BootstrapBackoffMaxAttemptsDefault),
 		BootstrapBackoffScale:         time.Duration(lookupIntEnv(BootstrapBackoffScaleEnvVar, BootstrapBackoffScaleDefault)),
 		Topic:                         lookupStringEnv(TopicEnvVar, TopicDefault),
+		TopicConfig:                   topicConfig(lookupStringEnv(TopicConfigEnvVar, TopicConfigDefault)),
 		ReconcileInterval:             time.Duration(lookupIntEnv(ReconcileIntervalEnvVar, ReconcileIntervalDefault)),
 		ClientID:                      lookupStringEnv(ClientIDEnvVar, ClientIDDefault),
 		ConsumerGroupID:               lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
@@ -165,6 +172,21 @@ func latencyBuckets(bucketsConfig string) []float64 {
 	return fBuckets
 }
 
+func topicConfig(topicConfig string) map[string]string {
+	if len(topicConfig) == 0 {
+		return nil
+	}
+	matches := topicConfigRegex.FindAllStringSubmatch(topicConfig, -1)
+
+	mapTopicConfig := make(map[string]string)
+	for _, kv := range matches {
+		k := kv[1]
+		v := kv[2]
+		mapTopicConfig[k] = v
+	}
+	return mapTopicConfig
+}
+
 func (c CanaryConfig) String() string {
 
 	// just using placeholders for certs/keys (content or paths)
@@ -194,11 +216,11 @@ func (c CanaryConfig) String() string {
 		}
 	}
 
-	return fmt.Sprintf("{BootstrapServers:%s, BootstrapBackoffMaxAttempts:%d, BootstrapBackoffScale:%d, Topic:%s, ReconcileInterval:%d ms, "+
+	return fmt.Sprintf("{BootstrapServers:%s, BootstrapBackoffMaxAttempts:%d, BootstrapBackoffScale:%d, Topic:%s, TopicConfig:%v, ReconcileInterval:%d ms, "+
 		"ClientID:%s, ConsumerGroupID:%s, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d, KafkaVersion:%s,"+
 		"SaramaLogEnabled:%t, VerbosityLogLevel:%d, TLSEnabled:%t, TLSCACert:%s, TLSClientCert:%s, TLSClientKey:%s, TLSInsecureSkipVerify:%t,"+
 		"SASLMechanism:%s, SASLUser:%s, SASLPassword:%s, ConnectionCheckInterval:%d ms, ConnectionCheckLatencyBuckets:%v}",
-		c.BootstrapServers, c.BootstrapBackoffMaxAttempts, c.BootstrapBackoffScale, c.Topic, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
+		c.BootstrapServers, c.BootstrapBackoffMaxAttempts, c.BootstrapBackoffScale, c.Topic, c.TopicConfig, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
 		c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion, c.SaramaLogEnabled, c.VerbosityLogLevel,
 		c.TLSEnabled, TLSCACert, TLSClientCert, TLSClientKey, c.TLSInsecureSkipVerify, c.SASLMechanism, SASLUser, SASLPassword,
 		c.ConnectionCheckInterval, c.ConnectionCheckLatencyBuckets)

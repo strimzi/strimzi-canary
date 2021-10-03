@@ -22,6 +22,8 @@ func TestConfigDefault(t *testing.T) {
 	assertIntConfigParameter(c.BootstrapBackoffMaxAttempts, BootstrapBackoffMaxAttemptsDefault, t)
 	assertDurationConfigParameter(c.BootstrapBackoffScale, BootstrapBackoffScaleDefault, t)
 	assertStringConfigParameter(c.Topic, TopicDefault, t)
+	topicConfigDefault := topicConfig(TopicConfigDefault)
+	assertMapConfigParameter(c.TopicConfig, topicConfigDefault, t)
 	assertDurationConfigParameter(c.ReconcileInterval, ReconcileIntervalDefault, t)
 	assertStringConfigParameter(c.ClientID, ClientIDDefault, t)
 	assertStringConfigParameter(c.ConsumerGroupID, ConsumerGroupIDDefault, t)
@@ -51,6 +53,7 @@ func TestConfigCustom(t *testing.T) {
 	os.Setenv(BootstrapBackoffMaxAttemptsEnvVar, "3")
 	os.Setenv(BootstrapBackoffScaleEnvVar, "1000")
 	os.Setenv(TopicEnvVar, "my-strimzi-canary-topic")
+	os.Setenv(TopicConfigEnvVar, "retention.ms=600000;segment.bytes=16384;cleanup.policy=compact,delete")
 	os.Setenv(ReconcileIntervalEnvVar, "10000")
 	os.Setenv(ClientIDEnvVar, "my-client-id")
 	os.Setenv(ConsumerGroupIDEnvVar, "my-consumer-group-id")
@@ -76,6 +79,8 @@ func TestConfigCustom(t *testing.T) {
 	assertIntConfigParameter(c.BootstrapBackoffMaxAttempts, 3, t)
 	assertDurationConfigParameter(c.BootstrapBackoffScale, 1000, t)
 	assertStringConfigParameter(c.Topic, "my-strimzi-canary-topic", t)
+	topicConfig := topicConfig("retention.ms=600000;segment.bytes=16384;cleanup.policy=compact,delete")
+	assertMapConfigParameter(c.TopicConfig, topicConfig, t)
 	assertDurationConfigParameter(c.ReconcileInterval, 10000, t)
 	assertStringConfigParameter(c.ClientID, "my-client-id", t)
 	assertStringConfigParameter(c.ConsumerGroupID, "my-consumer-group-id", t)
@@ -140,5 +145,13 @@ func assertBucketsConfigParameter(value []float64, defaultValue []float64, t *te
 func assertBoolConfigParameter(value bool, defaultValue bool, t *testing.T) {
 	if value != defaultValue {
 		t.Errorf("got = %t, want = %t", value, defaultValue)
+	}
+}
+
+func assertMapConfigParameter(value map[string]string, defaultValue map[string]string, t *testing.T) {
+	for i, v := range value {
+		if v != defaultValue[i] {
+			t.Errorf("got = %v, want = %v", v, defaultValue[i])
+		}
 	}
 }
