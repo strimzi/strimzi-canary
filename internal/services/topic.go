@@ -98,6 +98,17 @@ func NewTopicService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Con
 //
 // If a scale up, scale down, scale up happens, it forces a leader election for having preferred leaders
 func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
+	result, err := ts.reconcileTopic()
+	if err != nil && err.Error() == "EOF" {
+		// Kafka brokers close connection to the topic service admin client not able to recover
+		// Sarama issues: https://github.com/Shopify/sarama/issues/2042, https://github.com/Shopify/sarama/issues/1796
+		// Workaround closing the topic service with its admin client and the reopen on next reconcile
+		ts.Close()
+	}
+	return result, err
+}
+
+func (ts *TopicService) reconcileTopic() (TopicReconcileResult, error) {
 	result := TopicReconcileResult{nil, false}
 
 	if ts.admin == nil {

@@ -118,18 +118,12 @@ func (cm *CanaryManager) Stop() {
 func (cm *CanaryManager) reconcile() {
 	glog.Infof("Canary manager reconcile ...")
 
-	result, err := cm.topicService.Reconcile()
-	if err == nil {
+	if result, err := cm.topicService.Reconcile(); err == nil {
 		if result.RefreshMetadata {
 			cm.producerService.Refresh()
 		}
 		// producer has to send to partitions assigned to brokers
 		cm.producerService.Send(result.Assignments)
-	} else if err.Error() == "EOF" {
-		// Kafka brokers close connection to the topic service admin client not able to recover
-		// Sarama issues: https://github.com/Shopify/sarama/issues/2042, https://github.com/Shopify/sarama/issues/1796
-		// Workaround closing the topic service with its admin client and the reopen on next reconcile
-		cm.topicService.Close()
 	}
 
 	glog.Infof("... reconcile done")
