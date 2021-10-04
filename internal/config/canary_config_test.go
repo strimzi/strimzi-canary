@@ -105,6 +105,27 @@ func TestConfigCustom(t *testing.T) {
 	assertBucketsConfigParameter(c.ConnectionCheckLatencyBuckets, connectionCheckLatencyBuckets, t)
 }
 
+func TestTopicConfigurationNoKey(t *testing.T) {
+	defer func() { recover() }()
+	os.Setenv(TopicConfigEnvVar, "=600000;segment.bytes=16384;cleanup.policy=compact,delete")
+	NewCanaryConfig()
+	t.Errorf("Should have been panicked!")
+}
+
+func TestTopicConfigurationInvalidKeyValuePair(t *testing.T) {
+	defer func() { recover() }()
+	os.Setenv(TopicConfigEnvVar, "aaaaa;segment.bytes=16384;cleanup.policy=compact,delete")
+	NewCanaryConfig()
+	t.Errorf("Should have been panicked!")
+}
+
+func TestTopicConfigurationEmptyKeyValuePair(t *testing.T) {
+	defer func() { recover() }()
+	os.Setenv(TopicConfigEnvVar, ";;;;segment.bytes=16384;cleanup.policy=compact,delete")
+	NewCanaryConfig()
+	t.Errorf("Should have been panicked!")
+}
+
 func assertStringSlicesConfigParameter(value []string, defaultValue []string, t *testing.T) {
 	if len(value) != len(defaultValue) {
 		t.Errorf("Different lengths got = %d, want = %d", len(value), len(defaultValue))

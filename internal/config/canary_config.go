@@ -184,7 +184,7 @@ func topicConfig(topicConfig string) map[string]string {
 		kv := strings.Split(kvPair, "=")
 		// key-value pair split has to have two fields (key has to be not empty)
 		if len(kv) != 2 || len(kv[0]) == 0 {
-			glog.Fatalf("Error parsing topic configuration [%s]: [%s] is not a valid key-value pair", topicConfig, kvPair)
+			panic(fmt.Errorf("error parsing topic configuration [%s]: [%s] is not a valid key-value pair", topicConfig, kvPair))
 		}
 		mapTopicConfig[kv[0]] = kv[1]
 	}
