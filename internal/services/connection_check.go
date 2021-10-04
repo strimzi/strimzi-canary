@@ -32,7 +32,7 @@ var (
 
 type ConnectionService struct {
 	canaryConfig *config.CanaryConfig
-	client       sarama.Client
+	saramaConfig *sarama.Config
 	admin        sarama.ClusterAdmin
 	brokers      []*sarama.Broker
 	stop         chan struct{}
@@ -40,7 +40,7 @@ type ConnectionService struct {
 }
 
 // NewConnectionService returns an instance of ConnectionService
-func NewConnectionService(canaryConfig *config.CanaryConfig, client sarama.Client) *ConnectionService {
+func NewConnectionService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Config) *ConnectionService {
 	connectionLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:      "connection_latency",
 		Namespace: "strimzi_canary",
@@ -48,14 +48,11 @@ func NewConnectionService(canaryConfig *config.CanaryConfig, client sarama.Clien
 		Buckets:   canaryConfig.ConnectionCheckLatencyBuckets,
 	}, []string{"brokerid", "connected"})
 
-	admin, err := sarama.NewClusterAdminFromClient(client)
-	if err != nil {
-		glog.Fatalf("Error creating the Sarama cluster admin: %v", err)
-	}
+	// lazy creation of the Sarama cluster admin client when connections are checked for the first time or it's closed
 	cs := ConnectionService{
 		canaryConfig: canaryConfig,
-		client:       client,
-		admin:        admin,
+		saramaConfig: saramaConfig,
+		admin:        nil,
 	}
 	return &cs
 }
@@ -94,6 +91,7 @@ func (cs *ConnectionService) Close() {
 	if err := cs.admin.Close(); err != nil {
 		glog.Fatalf("Error closing the Sarama cluster admin: %v", err)
 	}
+	cs.admin = nil
 	glog.Infof("Connection check service closed")
 }
 
@@ -114,9 +112,28 @@ func (cs *ConnectionService) Close() {
 func (cs *ConnectionService) connectionCheck() {
 	var err error
 
+	if cs.admin == nil {
+		glog.Infof("Creating Sarama cluster admin")
+		admin, err := sarama.NewClusterAdmin(cs.canaryConfig.BootstrapServers, cs.saramaConfig)
+		if err != nil {
+			glog.Errorf("Error creating the Sarama cluster admin: %v", err)
+			return
+		}
+		cs.admin = admin
+	}
+
 	if cs.isDynamicScalingEnabled() || cs.brokers == nil {
 		cs.brokers, _, err = cs.admin.DescribeCluster()
 		if err != nil {
+			if err.Error() == "EOF" {
+				// Kafka brokers close connection to the admin client not able to recover
+				// Sarama issues: https://github.com/Shopify/sarama/issues/2042, https://github.com/Shopify/sarama/issues/1796
+				// Workaround closing the admin client and the reopen on next connection check
+				if err := cs.admin.Close(); err != nil {
+					glog.Fatalf("Error closing the Sarama cluster admin: %v", err)
+				}
+				cs.admin = nil
+			}
 			glog.Errorf("Error describing cluster: %v", err)
 			return
 		}
@@ -126,7 +143,7 @@ func (cs *ConnectionService) connectionCheck() {
 
 		start := util.NowInMilliseconds() // timestamp in milliseconds
 		// ignore error because it will be reported by Connected() call if "not connected"
-		b.Open(cs.client.Config())
+		b.Open(cs.saramaConfig)
 		connected, err := b.Connected()
 		duration := util.NowInMilliseconds() - start
 
