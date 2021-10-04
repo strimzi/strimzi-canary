@@ -9,7 +9,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -100,8 +99,6 @@ type CanaryConfig struct {
 	ConnectionCheckLatencyBuckets []float64
 }
 
-var topicConfigRegex = regexp.MustCompile(`([\w\.]+)=([\w,]+)`)
-
 // NewCanaryConfig returns an configuration instance from environment variables
 func NewCanaryConfig() *CanaryConfig {
 	var config CanaryConfig = CanaryConfig{
@@ -176,13 +173,20 @@ func topicConfig(topicConfig string) map[string]string {
 	if len(topicConfig) == 0 {
 		return nil
 	}
-	matches := topicConfigRegex.FindAllStringSubmatch(topicConfig, -1)
 
 	mapTopicConfig := make(map[string]string)
-	for _, kv := range matches {
-		k := kv[1]
-		v := kv[2]
-		mapTopicConfig[k] = v
+	kvPairs := strings.Split(topicConfig, ";")
+	for i, kvPair := range kvPairs {
+		// just exits if latest kvPair is empty (allows trailing ";")
+		if i == len(kvPairs)-1 && len(kvPair) == 0 {
+			break
+		}
+		kv := strings.Split(kvPair, "=")
+		// key-value pair split has to have two fields (key has to be not empty)
+		if len(kv) != 2 || len(kv[0]) == 0 {
+			panic(fmt.Errorf("error parsing topic configuration [%s]: [%s] is not a valid key-value pair", topicConfig, kvPair))
+		}
+		mapTopicConfig[kv[0]] = kv[1]
 	}
 	return mapTopicConfig
 }
