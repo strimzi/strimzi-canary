@@ -24,6 +24,8 @@ const (
 	waitConsumeTimeout = 30 * time.Second
 	// maximum number of attempts for consumer to join the consumer group successfully
 	maxConsumeAttempts = 3
+	// delay to wait after a consume error (i.e. due to a broker offline, leader election, ...)
+	consumeDelay = 2 * time.Second
 )
 
 var (
@@ -99,7 +101,8 @@ func (cs *ConsumerService) Consume() {
 				// this method calls the methods handler on each stage: setup, consume and cleanup
 				if err := cs.consumerGroup.Consume(ctx, []string{cs.canaryConfig.Topic}, cgh); err != nil {
 					glog.Infof("Error consuming topic: %s", err.Error())
-					return
+					time.Sleep(consumeDelay)
+					continue
 				}
 
 				// check if context was cancelled, because of forcing a refresh metadata or exiting the consumer
@@ -111,6 +114,7 @@ func (cs *ConsumerService) Consume() {
 			}
 		}()
 
+		glog.Infof("Waiting consumer group to be up and running")
 		// wait that the consumer is now subscribed to all partitions
 		if isTimeout := cs.wait(waitConsumeTimeout); isTimeout {
 			cs.cancel()
