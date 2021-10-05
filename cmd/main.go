@@ -56,10 +56,10 @@ func main() {
 		glog.Fatalf("Error creating new Sarama client: %v", err)
 	}
 
-	topicService := services.NewTopicService(canaryConfig, client)
+	topicService := services.NewTopicService(canaryConfig, client.Config())
 	producerService := services.NewProducerService(canaryConfig, client)
 	consumerService := services.NewConsumerService(canaryConfig, client)
-	connectionService := services.NewConnectionService(canaryConfig, client)
+	connectionService := services.NewConnectionService(canaryConfig, client.Config())
 
 	canaryManager := workers.NewCanaryManager(canaryConfig, topicService, producerService, consumerService, connectionService)
 	canaryManager.Start()

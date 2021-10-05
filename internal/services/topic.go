@@ -29,7 +29,7 @@ type TopicReconcileResult struct {
 // TopicService defines the service for canary topic management
 type TopicService struct {
 	canaryConfig *config.CanaryConfig
-	client       sarama.Client
+	saramaConfig *sarama.Config
 	admin        sarama.ClusterAdmin
 	initialized  bool
 }
@@ -74,15 +74,12 @@ func (e *ErrExpectedClusterSize) Error() string {
 }
 
 // NewTopicService returns an instance of TopicService
-func NewTopicService(canaryConfig *config.CanaryConfig, client sarama.Client) *TopicService {
-	admin, err := sarama.NewClusterAdminFromClient(client)
-	if err != nil {
-		glog.Fatalf("Error creating the Sarama cluster admin: %v", err)
-	}
+func NewTopicService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Config) *TopicService {
+	// lazy creation of the Sarama cluster admin client when reconcile for the first time or it's closed
 	ts := TopicService{
 		canaryConfig: canaryConfig,
-		client:       client,
-		admin:        admin,
+		saramaConfig: saramaConfig,
+		admin:        nil,
 	}
 	return &ts
 }
@@ -101,7 +98,29 @@ func NewTopicService(canaryConfig *config.CanaryConfig, client sarama.Client) *T
 //
 // If a scale up, scale down, scale up happens, it forces a leader election for having preferred leaders
 func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
+	result, err := ts.reconcileTopic()
+	if err != nil && err.Error() == "EOF" {
+		// Kafka brokers close connection to the topic service admin client not able to recover
+		// Sarama issues: https://github.com/Shopify/sarama/issues/2042, https://github.com/Shopify/sarama/issues/1796
+		// Workaround closing the topic service with its admin client and the reopen on next reconcile
+		ts.Close()
+	}
+	return result, err
+}
+
+func (ts *TopicService) reconcileTopic() (TopicReconcileResult, error) {
 	result := TopicReconcileResult{nil, false}
+
+	if ts.admin == nil {
+		glog.Infof("Creating Sarama cluster admin")
+		admin, err := sarama.NewClusterAdmin(ts.canaryConfig.BootstrapServers, ts.saramaConfig)
+		if err != nil {
+			glog.Errorf("Error creating the Sarama cluster admin: %v", err)
+			return result, err
+		}
+		ts.admin = admin
+	}
+
 	// getting brokers for assigning canary topic replicas accordingly
 	// on creation or cluster scale up/down when topic already exists
 	brokers, _, err := ts.admin.DescribeCluster()
@@ -200,6 +219,7 @@ func (ts *TopicService) Close() {
 	if err := ts.admin.Close(); err != nil {
 		glog.Fatalf("Error closing the Sarama cluster admin: %v", err)
 	}
+	ts.admin = nil
 	glog.Infof("Topic service closed")
 }
 
