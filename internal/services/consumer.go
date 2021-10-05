@@ -100,7 +100,7 @@ func (cs *ConsumerService) Consume() {
 				glog.Infof("Consumer group consume starting...")
 				// this method calls the methods handler on each stage: setup, consume and cleanup
 				if err := cs.consumerGroup.Consume(ctx, []string{cs.canaryConfig.Topic}, cgh); err != nil {
-					glog.Infof("Error consuming topic: %s", err.Error())
+					glog.Errorf("Error consuming topic: %s", err.Error())
 					time.Sleep(consumeDelay)
 					continue
 				}
