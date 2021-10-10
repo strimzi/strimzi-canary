@@ -13,6 +13,10 @@ docker_build:
 	echo "Building Docker image ..."
 	docker build -t ${DOCKER_REGISTRY}/${DOCKER_ORG}/${DOCKER_REPO}:${DOCKER_TAG} .
 
+docker_save:
+	echo "Saving Docker image as tar.gz file ..."
+	docker save ${DOCKER_REGISTRY}/${DOCKER_ORG}/${DOCKER_REPO}:${DOCKER_TAG} | gzip > canary-container.tar.gz
+
 docker_push:
 	echo "Pushing Docker image ..."
 	docker push ${DOCKER_REGISTRY}/${DOCKER_ORG}/${DOCKER_REPO}:${DOCKER_TAG}
