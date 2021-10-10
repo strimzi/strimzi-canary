@@ -47,7 +47,9 @@ The available make targets are the following:
 
 * `go_build`: for building the application binary in the `cmd/target` folder.
 * `docker_build`: for building the Docker image.
+* `docker_save`: for saving the Docker image as a tar.gz file.
 * `docker_push`: for pushing the Docker image to a Docker repository.
+* `docker_load`: for loading the Docker image from a tar.gz file into the local registry.
 * `all`: for running all the previous ones to build the application and then build and push the Docker image.
 * `clean`: to clean the folder where the application binary is built.
 
