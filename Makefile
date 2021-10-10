@@ -21,6 +21,10 @@ docker_push:
 	echo "Pushing Docker image ..."
 	docker push ${DOCKER_REGISTRY}/${DOCKER_ORG}/${DOCKER_REPO}:${DOCKER_TAG}
 
+docker_load:
+	echo "Loading Docker image from tar.gz file ..."
+	docker load < canary-container.tar.gz 
+
 all: go_build docker_build docker_push
 
 clean:
