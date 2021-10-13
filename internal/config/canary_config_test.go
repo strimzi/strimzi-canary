@@ -46,6 +46,8 @@ func TestConfigDefault(t *testing.T) {
 	assertDurationConfigParameter(c.ConnectionCheckInterval, ConnectionCheckIntervalDefault, t)
 	connectionCheckLatencyBucketsDefault := latencyBuckets(ConnectionCheckLatencyBucketsDefault)
 	assertBucketsConfigParameter(c.ConnectionCheckLatencyBuckets, connectionCheckLatencyBucketsDefault, t)
+	assertDurationConfigParameter(c.StatusCheckInterval, StatusCheckIntervalDefault, t)
+	assertDurationConfigParameter(c.StatusTimeWindow, StatusTimeWindowDefault, t)
 }
 
 func TestConfigCustom(t *testing.T) {
@@ -73,6 +75,8 @@ func TestConfigCustom(t *testing.T) {
 	os.Setenv(SASLPasswordEnvVar, "password")
 	os.Setenv(ConnectionCheckIntervalEnvVar, "20000")
 	os.Setenv(ConnectionCheckLatencyBucketsEnvVar, "200,400,800")
+	os.Setenv(StatusCheckIntervalEnvVar, "30000")
+	os.Setenv(StatusTimeWindowEnvVar, "200000")
 	c := NewCanaryConfig()
 	bootstrapServers := strings.Split("kafka-broker-1:9092,kafka-broker-2:9092", ",")
 	assertStringSlicesConfigParameter(c.BootstrapServers, bootstrapServers, t)
@@ -103,6 +107,8 @@ func TestConfigCustom(t *testing.T) {
 	assertDurationConfigParameter(c.ConnectionCheckInterval, 20000, t)
 	connectionCheckLatencyBuckets := latencyBuckets("200,400,800")
 	assertBucketsConfigParameter(c.ConnectionCheckLatencyBuckets, connectionCheckLatencyBuckets, t)
+	assertDurationConfigParameter(c.StatusCheckInterval, 30000, t)
+	assertDurationConfigParameter(c.StatusTimeWindow, 200000, t)
 }
 
 func TestTopicConfigurationNoKey(t *testing.T) {

@@ -24,6 +24,7 @@ type CanaryManager struct {
 	producerService   *services.ProducerService
 	consumerService   *services.ConsumerService
 	connectionService *services.ConnectionService
+	statusService     *services.StatusService
 	stop              chan struct{}
 	syncStop          sync.WaitGroup
 }
@@ -39,13 +40,15 @@ var (
 // NewCanaryManager returns an instance of the cananry manager worker
 func NewCanaryManager(canaryConfig *config.CanaryConfig,
 	topicService *services.TopicService, producerService *services.ProducerService,
-	consumerService *services.ConsumerService, connectionService *services.ConnectionService) Worker {
+	consumerService *services.ConsumerService, connectionService *services.ConnectionService,
+	statusService *services.StatusService) Worker {
 	cm := CanaryManager{
 		canaryConfig:      canaryConfig,
 		topicService:      topicService,
 		producerService:   producerService,
 		consumerService:   consumerService,
 		connectionService: connectionService,
+		statusService:     statusService,
 	}
 	return &cm
 }
@@ -58,6 +61,7 @@ func (cm *CanaryManager) Start() {
 	cm.syncStop.Add(1)
 
 	cm.connectionService.Open()
+	cm.statusService.Open()
 
 	// using the same bootstrap configuration that makes sense during the canary start up
 	backoff := services.NewBackoff(cm.canaryConfig.BootstrapBackoffMaxAttempts, cm.canaryConfig.BootstrapBackoffScale*time.Millisecond, services.MaxDefault)
@@ -111,6 +115,7 @@ func (cm *CanaryManager) Stop() {
 	cm.consumerService.Close()
 	cm.topicService.Close()
 	cm.connectionService.Close()
+	cm.statusService.Close()
 
 	glog.Infof("Canary manager closed")
 }

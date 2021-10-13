@@ -35,7 +35,9 @@ When running the Strimzi canary tool, it is possible to configure different aspe
 * `SASL_USER`: username for SASL authentication against the Kafka cluster when PLAIN or SCRAM-SHA are used. Default empty.
 * `SASL_PASSWORD`: password for SASL authentication against the Kafka cluster when PLAIN or SCRAM-SHA are used. Default empty.
 * `CONNECTION_CHECK_INTERVAL_MS`: it defines how often the tool has to check the connection with brokers (in ms). Default `120000`.
-* `CONNECTION_CHECK_LATENCY_BUCKETS`: buckets of the hystogram related to the brokers connection latency metric (in ms). Default `100,200,400,800,1600`. 
+* `CONNECTION_CHECK_LATENCY_BUCKETS`: buckets of the hystogram related to the brokers connection latency metric (in ms). Default `100,200,400,800,1600`.
+* `STATUS_CHECK_INTERVAL_MS`: it defines how often (in ms) the tool updates internal status information (i.e. percentage of consumed messages) to expose outside on the corresponding HTTP endpoint. Default `30000`.
+* `STATUS_TIME_WINDOW_MS`: it defines the sliding time window size (in ms) in which status information are sampled. Default `300000`
 
 ## Build
 

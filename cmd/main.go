@@ -45,7 +45,8 @@ func main() {
 
 	glog.Infof("Starting Strimzi canary tool with config: %+v", canaryConfig)
 
-	httpServer := servers.NewHttpServer()
+	statusService := services.NewStatusServiceService(canaryConfig)
+	httpServer := servers.NewHttpServer(statusService)
 	httpServer.Start()
 
 	signals := make(chan os.Signal, 1)
@@ -61,7 +62,7 @@ func main() {
 	consumerService := services.NewConsumerService(canaryConfig, client)
 	connectionService := services.NewConnectionService(canaryConfig, client.Config())
 
-	canaryManager := workers.NewCanaryManager(canaryConfig, topicService, producerService, consumerService, connectionService)
+	canaryManager := workers.NewCanaryManager(canaryConfig, topicService, producerService, consumerService, connectionService, statusService)
 	canaryManager.Start()
 
 	sig := <-signals

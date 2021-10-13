@@ -22,11 +22,12 @@ type HttpServer struct {
 }
 
 // NewHttpServer returns an instance of the HttpServer
-func NewHttpServer() *HttpServer {
+func NewHttpServer(statusService *services.StatusService) *HttpServer {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.Handle("/liveness", services.LivenessHandler())
 	mux.Handle("/readiness", services.ReadinessHandler())
+	mux.Handle("/status", statusService.StatusHandler())
 	ms := HttpServer{}
 	ms.httpServer = &http.Server{
 		Addr:    ":8080",
