@@ -7,6 +7,8 @@
 package services
 
 import (
+	"encoding/json"
+	"math"
 	"net/http"
 	"sync"
 	"time"
@@ -15,6 +17,11 @@ import (
 	"github.com/strimzi/strimzi-canary/internal/config"
 	"github.com/strimzi/strimzi-canary/internal/util"
 )
+
+// Status defines useful status related information
+type Status struct {
+	ConsumedPercentage float64
+}
 
 type StatusService struct {
 	canaryConfig           *config.CanaryConfig
@@ -70,30 +77,45 @@ func (ss *StatusService) Close() {
 func (ss *StatusService) statusCheck() {
 	ss.producedRecordsSamples.Put(RecordsProducedCounter)
 	ss.consumedRecordsSamples.Put(RecordsConsumedCounter)
-	glog.Infof("Status check: produced [head = %d, tail = %d, count = %d], consumed [head = %d, tail = %d, count = %d]",
+	glog.V(1).Infof("Status check: produced [head = %d, tail = %d, count = %d], consumed [head = %d, tail = %d, count = %d]",
 		ss.producedRecordsSamples.Head(), ss.producedRecordsSamples.Tail(), ss.producedRecordsSamples.Count(),
 		ss.consumedRecordsSamples.Head(), ss.consumedRecordsSamples.Tail(), ss.consumedRecordsSamples.Count())
 }
 
 func (ss *StatusService) StatusHandler() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		// sampling for produced (and consumed records) not done yet
-		if ss.producedRecordsSamples.IsEmpty() {
-			rw.Write([]byte("KO"))
-			return
+		status := Status{}
+
+		consumedPercentage, err := ss.consumedPercentage()
+		if e, ok := err.(*util.ErrNoDataSamples); ok {
+			status.ConsumedPercentage = -1
+			glog.Errorf("Error processing consumed records percentage: %v", e)
+		} else {
+			status.ConsumedPercentage = consumedPercentage
 		}
 
-		// get number of records consumed and produced since the beginning of the time window (tail of ring buffers)
-		consumed := ss.consumedRecordsSamples.Head() - ss.consumedRecordsSamples.Tail()
-		produced := ss.producedRecordsSamples.Head() - ss.producedRecordsSamples.Tail()
-
-		if produced == 0 {
-			rw.Write([]byte("KO"))
-			return
-		}
-
-		percentage := consumed * 100 / produced
-		glog.Infof("Percentage = %d", percentage)
-		rw.Write([]byte("OK"))
+		json, _ := json.Marshal(status)
+		rw.Write(json)
 	})
+}
+
+func (ss *StatusService) consumedPercentage() (float64, error) {
+	// sampling for produced (and consumed records) not done yet
+	if ss.producedRecordsSamples.IsEmpty() {
+		return 0, &util.ErrNoDataSamples{}
+	}
+
+	// get number of records consumed and produced since the beginning of the time window (tail of ring buffers)
+	consumed := ss.consumedRecordsSamples.Head() - ss.consumedRecordsSamples.Tail()
+	produced := ss.producedRecordsSamples.Head() - ss.producedRecordsSamples.Tail()
+
+	if produced == 0 {
+		return 0, &util.ErrNoDataSamples{}
+	}
+
+	percentage := float64(consumed*100) / float64(produced)
+	// rounding to two decimal digits
+	percentage = math.Round(percentage*100) / 100
+	glog.V(1).Infof("Status consumed percentage = %f", percentage)
+	return percentage, nil
 }

@@ -17,6 +17,13 @@ const (
 	maxBufferBuckets = 128
 )
 
+// ErrNoDataSamples defines the error can be raised when there are no data samples in the timw window ring
+type ErrNoDataSamples struct{}
+
+func (e *ErrNoDataSamples) Error() string {
+	return "No data samples available in the time window ring"
+}
+
 // TimeWindowRing represents a struct leveraging a buffer of buckets to store values
 // covering a sliding time window of specified "size" and sampled with "sampling" rate
 // NOTE: internal buffer size is determined by time windows size and sampling rate capped at maxBufferBuckets
