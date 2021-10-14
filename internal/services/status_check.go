@@ -20,7 +20,12 @@ import (
 
 // Status defines useful status related information
 type Status struct {
-	ConsumedPercentage float64
+	Consuming ConsumingStatus
+}
+
+type ConsumingStatus struct {
+	TimeWindow time.Duration
+	Percentage float64
 }
 
 type StatusService struct {
@@ -86,12 +91,16 @@ func (ss *StatusService) StatusHandler() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		status := Status{}
 
+		// update consuming related status section
+		status.Consuming = ConsumingStatus{
+			TimeWindow: ss.canaryConfig.StatusCheckInterval * time.Duration(ss.consumedRecordsSamples.Count()),
+		}
 		consumedPercentage, err := ss.consumedPercentage()
 		if e, ok := err.(*util.ErrNoDataSamples); ok {
-			status.ConsumedPercentage = -1
+			status.Consuming.Percentage = -1
 			glog.Errorf("Error processing consumed records percentage: %v", e)
 		} else {
-			status.ConsumedPercentage = consumedPercentage
+			status.Consuming.Percentage = consumedPercentage
 		}
 
 		json, _ := json.Marshal(status)
