@@ -23,6 +23,7 @@ type Status struct {
 	Consuming ConsumingStatus
 }
 
+// ConsumingStatus defines consuming related status information
 type ConsumingStatus struct {
 	TimeWindow time.Duration
 	Percentage float64
@@ -108,6 +109,7 @@ func (ss *StatusService) StatusHandler() http.Handler {
 	})
 }
 
+// consumedPercentage function processes the percentage of consumed messages in the specified time window
 func (ss *StatusService) consumedPercentage() (float64, error) {
 	// sampling for produced (and consumed records) not done yet
 	if ss.producedRecordsSamples.IsEmpty() {
