@@ -61,3 +61,23 @@ The make targets used for building and pushing the Docker image use the followin
 * `DOCKER_ORG`: the Docker organization for tagging/pushing the image (defaults to the value of t.he $USER environment variable).
 * `DOCKER_TAG`: the Docker tag (default is `latest`).
 * `DOCKER_REPO`: the Docker repository where the image will be pushed (default is `canary`).
+
+## Testing
+
+The available tests are grouped using two different build tags:
+
+* `unit_test`: for the unit tests alongside the different Go files.
+* `e2e`: for running an end-to-end test using a Kafka cluster (via Docker compose) and the canary running alongside it, in order to verify that it's able to exchange messages.
+
+Use the `go test` command in order to run the tests.
+For running the unit tests:
+
+```shell
+go test ./internal/... --tags=unit_test
+```
+
+For running the e2e tests:
+
+```shell
+go test ./test/... --tags=e2e
+```
