@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	// max number of buckets in the time window ring buffer, which allows up to 1204 KB (8 byte * 128 buckets)
-	maxBufferBuckets = 128
+	// max number of buckets in the time window ring buffer, which allows up to 3 KB (8 byte * 384 buckets)
+	maxBufferBuckets = 384
 )
 
 // ErrNoDataSamples defines the error can be raised when there are no data samples in the timw window ring
@@ -87,7 +87,9 @@ func (rb *TimeWindowRing) Put(value uint64) {
 	if rb.tail == -1 {
 		rb.tail = 0
 	}
-	rb.count++
+	if rb.count < len(rb.buffer) {
+		rb.count++
+	}
 }
 
 // Head returns the sampled value at the head position
