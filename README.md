@@ -20,8 +20,8 @@ When running the Strimzi canary tool, it is possible to configure different aspe
 * `RECONCILE_INTERVAL_MS`: it defines how often the tool has to send and receive messages (in ms). Default `30000`.
 * `CLIENT_ID`: the client id used for configuring producer and consumer. Default `strimzi-canary-client`.
 * `CONSUMER_GROUP_ID`: group id for the consumer group joined by the canary consumer. Default `strimzi-canary-group`.
-* `PRODUCER_LATENCY_BUCKETS`: buckets of the hystogram related to the producer latency metric (in ms). Default `100,200,400,800,1600`.
-* `ENDTOEND_LATENCY_BUCKETS`: buckets of the hystogram related to the end to end latency metric between producer and consumer (in ms). Default `100,200,400,800,1600`.
+* `PRODUCER_LATENCY_BUCKETS`: buckets of the histogram related to the producer latency metric (in ms). Default `100,200,400,800,1600`.
+* `ENDTOEND_LATENCY_BUCKETS`: buckets of the histogram related to the end to end latency metric between producer and consumer (in ms). Default `100,200,400,800,1600`.
 * `EXPECTED_CLUSTER_SIZE`: expected number of brokers in the Kafka cluster where the canary connects to. This parameter avoid that the tool runs more partitions reassignment of the topic while the Kafka cluster is starting up and the brokers are coming one by one. Default `-1` means "dynamic" reassignment as described above. When greater than 0, the canary waits for the Kafka cluster having the expected number of brokers running before creating the topic and assigning the partitions.
 * `KAFKA_VERSION`: version of the Kafka cluster. Default `2.8.0`.
 * `SARAMA_LOG_ENABLED`: enables the Sarama client logging. Default `false`.
@@ -35,7 +35,7 @@ When running the Strimzi canary tool, it is possible to configure different aspe
 * `SASL_USER`: username for SASL authentication against the Kafka cluster when PLAIN or SCRAM-SHA are used. Default empty.
 * `SASL_PASSWORD`: password for SASL authentication against the Kafka cluster when PLAIN or SCRAM-SHA are used. Default empty.
 * `CONNECTION_CHECK_INTERVAL_MS`: it defines how often the tool has to check the connection with brokers (in ms). Default `120000`.
-* `CONNECTION_CHECK_LATENCY_BUCKETS`: buckets of the hystogram related to the brokers connection latency metric (in ms). Default `100,200,400,800,1600`.
+* `CONNECTION_CHECK_LATENCY_BUCKETS`: buckets of the histogram related to the brokers connection latency metric (in ms). Default `100,200,400,800,1600`.
 * `STATUS_CHECK_INTERVAL_MS`: it defines how often (in ms) the tool updates internal status information (i.e. percentage of consumed messages) to expose outside on the corresponding HTTP endpoint. Default `30000`.
 * `STATUS_TIME_WINDOW_MS`: it defines the sliding time window size (in ms) in which status information are sampled. Default `300000`
 
