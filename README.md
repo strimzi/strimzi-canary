@@ -39,6 +39,33 @@ When running the Strimzi canary tool, it is possible to configure different aspe
 * `STATUS_CHECK_INTERVAL_MS`: it defines how often (in ms) the tool updates internal status information (i.e. percentage of consumed messages) to expose outside on the corresponding HTTP endpoint. Default `30000`.
 * `STATUS_TIME_WINDOW_MS`: it defines the sliding time window size (in ms) in which status information are sampled. Default `300000`
 
+## Endpoints
+
+The canary exposes some HTTP endpoints to provide information about status, healthy and metrics.
+
+### Liveness and readiness
+
+The `/liveness` and `/readiness` endpoints report back if the canary is live and ready by proving just an `OK` HTTP body.
+
+### Metrics
+
+The `/metrics` endpoint provides useful metrics in Prometheus format.
+
+### Status
+
+The `/status` endpoint provides status information through a JSON object structured with different sections.
+
+The `Consuming` field provides information about the `Percentage` of messages correctly consumed in a sliding `TimeWindow` (in ms).
+
+```json
+{
+  "Consuming": {
+    "TimeWindow": 150000,
+    "Percentage": 100
+  }
+}
+```
+
 ## Build
 
 The canary repository provides a `Makefile` with different make targets for building the project.
