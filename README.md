@@ -41,7 +41,7 @@ When running the Strimzi canary tool, it is possible to configure different aspe
 
 ## Endpoints
 
-The canary exposes some HTTP endpoints to provide information about status, healthy and metrics.
+The canary exposes some HTTP endpoints to provide information about status, health and metrics.
 
 ### Liveness and readiness
 
@@ -55,7 +55,7 @@ The `/metrics` endpoint provides useful metrics in Prometheus format.
 
 The `/status` endpoint provides status information through a JSON object structured with different sections.
 
-The `Consuming` field provides information about the `Percentage` of messages correctly consumed in a sliding `TimeWindow` (in ms).
+The `Consuming` field provides information about the `Percentage` of messages correctly consumed in a sliding `TimeWindow` (in ms), whose maximum size is configured via the `STATUS_TIME_WINDOW_MS` environment variable; until that size is reached, the `TimeWindow` field reports the current covered time window with gathered samples.
 
 ```json
 {
