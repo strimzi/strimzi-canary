@@ -18,6 +18,8 @@ import (
 )
 
 var (
+	RecordsProducedCounter uint64 = 0
+
 	recordsProduced = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name:      "records_produced_total",
 		Namespace: "strimzi_canary",
@@ -89,6 +91,7 @@ func (ps *ProducerService) Send(partitionsAssignments map[int32][]int32) {
 			"partition": strconv.Itoa(i),
 		}
 		recordsProduced.With(labels).Inc()
+		RecordsProducedCounter++
 		if err != nil {
 			glog.Warningf("Error sending message: %v", err)
 			recordsProducedFailed.With(labels).Inc()

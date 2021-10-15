@@ -29,6 +29,8 @@ const (
 )
 
 var (
+	RecordsConsumedCounter uint64 = 0
+
 	recordsConsumed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name:      "records_consumed_total",
 		Namespace: "strimzi_canary",
@@ -196,6 +198,7 @@ func (cgh *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSessio
 		}
 		recordsEndToEndLatency.With(labels).Observe(float64(duration))
 		recordsConsumed.With(labels).Inc()
+		RecordsConsumedCounter++
 	}
 	return nil
 }
