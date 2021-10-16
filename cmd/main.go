@@ -25,6 +25,8 @@ import (
 )
 
 var (
+	version = "development"
+
 	clientCreationFailed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name:      "client_creation_error_total",
 		Namespace: "strimzi_canary",
@@ -43,7 +45,7 @@ func main() {
 	flag.Set("v", strconv.Itoa(canaryConfig.VerbosityLogLevel))
 	flag.Parse()
 
-	glog.Infof("Starting Strimzi canary tool with config: %+v", canaryConfig)
+	glog.Infof("Starting Strimzi canary tool [%s] with config: %+v", version, canaryConfig)
 
 	statusService := services.NewStatusServiceService(canaryConfig)
 	httpServer := servers.NewHttpServer(statusService)
