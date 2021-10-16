@@ -5,9 +5,11 @@ DOCKER_REPO ?= canary
 
 BINARY ?= strimzi-canary
 
+RELEASE_VERSION ?= latest
+
 go_build:
 	echo "Building Golang binary ..."
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o cmd/target/$(BINARY) cmd/main.go
+	CGO_ENABLED=0 GOOS=linux go build -ldflags="-X 'main.version=${RELEASE_VERSION}'" -a -installsuffix cgo -o cmd/target/$(BINARY) cmd/main.go
 
 docker_build:
 	echo "Building Docker image ..."
