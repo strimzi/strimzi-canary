@@ -9,7 +9,6 @@ RELEASE_VERSION ?= latest
 release: release_prepare release_version release_pkg
 
 release_prepare:
-	echo $(shell echo $(RELEASE_VERSION) | tr a-z A-Z) > release.version
 	rm -rf ./strimzi-canary-$(RELEASE_VERSION)
 	rm -f ./strimzi-canary-$(RELEASE_VERSION).tar.gz
 	rm -f ./strimzi-canary-$(RELEASE_VERSION).zip
