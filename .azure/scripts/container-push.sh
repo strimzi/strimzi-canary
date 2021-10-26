@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+echo "Build reason: ${BUILD_REASON}"
+echo "Source branch: ${BRANCH}"
 echo "Pushing container images for ${DOCKER_TAG}"
 
 echo "Login into container registry ..."
