@@ -7,4 +7,4 @@ echo "Source branch: ${BRANCH}"
 RELEASE_VERSION=$(cat ./release.version)
 echo "Build binary for ${RELEASE_VERSION}"
 
-#make go_build
+make go_build
