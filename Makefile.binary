@@ -1,8 +1,9 @@
 BINARY ?= strimzi-canary
+RELEASE_VERSION := $(shell cat ./release.version)
 
 .PHONY: go_build
 go_build:
-	echo "Building Golang binary ..."
+	echo "Building Golang binary for ${RELEASE_VERSION}..."
 	CGO_ENABLED=0 GOOS=linux go build -ldflags="-X 'main.version=${RELEASE_VERSION}'" -a -installsuffix cgo -o cmd/target/$(BINARY) cmd/main.go
 
 .PHONY: go_clean
