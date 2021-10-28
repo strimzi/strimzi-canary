@@ -1,5 +1,4 @@
 BINARY ?= strimzi-canary
-RELEASE_VERSION := $(shell cat ./release.version)
 
 .PHONY: go_build
 go_build:
