@@ -32,7 +32,7 @@ When running the Strimzi canary tool, it is possible to configure different aspe
 * `TLS_CLIENT_KEY`: TLS client private key, in PEM format, to use for enabling TLS client authentication against the Kafka cluster. Default empty.
 * `TLS_INSECURE_SKIP_VERIFY`:  if the underneath Sarama client has to verify the server's certificate chain and host name. Default `false`.
 * `SASL_MECHANISM`: mechanism to use for SASL authentication against the Kafka cluster. Default empty.
-* `SASL_USER`: username for SASL authentication against the Kafka cluster when PLAIN or SCRAM-SHA are used. Default empty.
+* `SASL_USER`: username for SASL authentication against the Kafka cluster when PLAIN or SCRAM-SHA are used. Supported is `PLAIN`. Default empty.
 * `SASL_PASSWORD`: password for SASL authentication against the Kafka cluster when PLAIN or SCRAM-SHA are used. Default empty.
 * `CONNECTION_CHECK_INTERVAL_MS`: it defines how often the tool has to check the connection with brokers (in ms). Default `120000`.
 * `CONNECTION_CHECK_LATENCY_BUCKETS`: buckets of the histogram related to the brokers connection latency metric (in ms). Default `100,200,400,800,1600`.
