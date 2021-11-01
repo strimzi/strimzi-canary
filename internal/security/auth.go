@@ -16,7 +16,9 @@ import (
 
 func SetAuthConfig(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Config) error {
 
-	if canaryConfig.SASLMechanism == sarama.SASLTypePlaintext {
+	if canaryConfig.SASLMechanism == sarama.SASLTypePlaintext ||
+		canaryConfig.SASLMechanism == sarama.SASLTypeSCRAMSHA256 ||
+		canaryConfig.SASLMechanism == sarama.SASLTypeSCRAMSHA512 {
 
 		if canaryConfig.SASLUser == "" {
 			return errors.New("SASL user must be specified")
@@ -29,6 +31,13 @@ func SetAuthConfig(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Confi
 		saramaConfig.Net.SASL.Mechanism = sarama.SASLMechanism(canaryConfig.SASLMechanism)
 		saramaConfig.Net.SASL.User = canaryConfig.SASLUser
 		saramaConfig.Net.SASL.Password = canaryConfig.SASLPassword
+
+		if canaryConfig.SASLMechanism == sarama.SASLTypeSCRAMSHA256 {
+			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA256} }
+		} else if canaryConfig.SASLMechanism == sarama.SASLTypeSCRAMSHA512 {
+			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA512} }
+		}
+
 		return nil
 	}
 	return fmt.Errorf("SASL mechanism %s is not supported", canaryConfig.SASLMechanism)
