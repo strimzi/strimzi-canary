@@ -33,9 +33,9 @@ func SetAuthConfig(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Confi
 		saramaConfig.Net.SASL.Password = canaryConfig.SASLPassword
 
 		if canaryConfig.SASLMechanism == sarama.SASLTypeSCRAMSHA256 {
-			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA256} }
+			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &CanarySCRAM{HashGeneratorFcn: SHA256} }
 		} else if canaryConfig.SASLMechanism == sarama.SASLTypeSCRAMSHA512 {
-			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA512} }
+			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &CanarySCRAM{HashGeneratorFcn: SHA512} }
 		}
 
 		return nil
