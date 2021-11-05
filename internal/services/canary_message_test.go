@@ -19,8 +19,9 @@ func TestCanaryMessage(t *testing.T) {
 		ProducerID: "producer-id",
 		MessageID:  0,
 		Timestamp:  12345,
+		Sync: "sync",
 	}
-	want := "{\"producerId\":\"producer-id\",\"messageId\":0,\"timestamp\":12345}"
+	want := "{\"producerId\":\"producer-id\",\"messageId\":0,\"timestamp\":12345,\"sync\":\"sync\"}"
 	if cm.Json() != want {
 		t.Errorf("JSON got = %s, want = %s", cm.Json(), want)
 	}
@@ -31,6 +32,7 @@ func TestCanaryMessageEncode(t *testing.T) {
 		ProducerID: "producer-id",
 		MessageID:  0,
 		Timestamp:  12345,
+		Sync: "sync",
 	}
 	encoder := sarama.StringEncoder(cm.Json())
 	bytes, _ := encoder.Encode()
@@ -41,7 +43,7 @@ func TestCanaryMessageEncode(t *testing.T) {
 		t.Errorf("got = %v, want = %v", decodedCm, cm)
 	}
 
-	wrong := "{\"producerId\":\"producer-id\",\"messageId\":1,\"timestamp\":67890}"
+	wrong := "{\"producerId\":\"producer-id\",\"messageId\":1,\"timestamp\":67890,\"sync\":\"stale\"}"
 
 	encoder = sarama.StringEncoder(wrong)
 	bytes, _ = encoder.Encode()

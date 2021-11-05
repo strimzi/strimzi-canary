@@ -49,10 +49,11 @@ type ProducerService struct {
 	producer     sarama.SyncProducer
 	// index of the next message to send
 	index int
+	sync         *Synchronizer
 }
 
 // NewProducerService returns an instance of ProductService
-func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ProducerService {
+func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client, sync *Synchronizer) *ProducerService {
 	recordsProducedLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:      "records_produced_latency",
 		Namespace: "strimzi_canary",
@@ -68,6 +69,7 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 		canaryConfig: canaryConfig,
 		client:       client,
 		producer:     producer,
+		sync:         sync,
 	}
 	return &ps
 }
@@ -95,6 +97,9 @@ func (ps *ProducerService) Send(partitionsAssignments map[int32][]int32) {
 		if err != nil {
 			glog.Warningf("Error sending message: %v", err)
 			recordsProducedFailed.With(labels).Inc()
+			if err.Error() == "EOF" {
+				ps.sync.Next()
+			}
 		} else {
 			duration := timestamp - cm.Timestamp
 			glog.V(1).Infof("Message sent: partition=%d, offset=%d, duration=%d ms", partition, offset, duration)
@@ -132,6 +137,7 @@ func (ps *ProducerService) newCanaryMessage() CanaryMessage {
 		ProducerID: ps.canaryConfig.ClientID,
 		MessageID:  ps.index,
 		Timestamp:  timestamp,
+		Sync:       ps.sync.Current(),
 	}
 	return cm
 }

@@ -9,6 +9,7 @@ package services
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -37,6 +38,13 @@ var (
 		Help:      "The total number of records consumed",
 	}, []string{"clientid", "partition"})
 
+	recordsConsumedStale = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "records_consumed_stale_total",
+		Namespace: "strimzi_canary",
+		Help:      "The total number of records consume stale",
+	}, []string{"clientid", "partition"})
+
+
 	// it's defined when the service is created because buckets are configurable
 	recordsEndToEndLatency *prometheus.HistogramVec
 
@@ -56,10 +64,11 @@ type ConsumerService struct {
 	// in order to ending the session and allowing a rejoin with rebalancing
 	cancel context.CancelFunc
 	ready  chan bool
+	sync *Synchronizer
 }
 
 // NewConsumerService returns an instance of ConsumerService
-func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ConsumerService {
+func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client, sync *Synchronizer) *ConsumerService {
 	recordsEndToEndLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:      "records_consumed_latency",
 		Namespace: "strimzi_canary",
@@ -76,7 +85,16 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 		client:        client,
 		consumerGroup: consumerGroup,
 		ready:         make(chan bool),
+		sync:          sync,
 	}
+	go func() {
+		for err := range consumerGroup.Errors() {
+			glog.Errorf("Error received whilst consuming from topic: %v", err)
+			if err != nil && strings.HasSuffix(err.Error(), "EOF") {
+				cs.sync.Next()
+			}
+		}
+	}()
 	return &cs
 }
 
@@ -178,7 +196,7 @@ func (cgh *consumerGroupHandler) Setup(sarama.ConsumerGroupSession) error {
 	return nil
 }
 
-func (cgh *consumerGroupHandler) Cleanup(sarama.ConsumerGroupSession) error {
+func (cgh *consumerGroupHandler) Cleanup(s sarama.ConsumerGroupSession) error {
 	glog.Infof("Consumer group cleanup")
 	return nil
 }
@@ -190,15 +208,21 @@ func (cgh *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSessio
 		timestamp := util.NowInMilliseconds() // timestamp in milliseconds
 		cm := NewCanaryMessage(message.Value)
 		duration := timestamp - cm.Timestamp
-		glog.V(1).Infof("Message received: value=%+v, partition=%d, offset=%d, duration=%d ms", cm, message.Partition, message.Offset, duration)
+		stale := cm.Sync != cgh.consumerService.sync.Current()
+		glog.V(1).Infof("Message received: value=%+v, partition=%d, offset=%d, duration=%d ms, stale=%t", cm, message.Partition, message.Offset, duration, stale)
 		session.MarkMessage(message, "")
 		labels := prometheus.Labels{
 			"clientid":  cgh.consumerService.canaryConfig.ClientID,
 			"partition": strconv.Itoa(int(message.Partition)),
 		}
-		recordsEndToEndLatency.With(labels).Observe(float64(duration))
-		recordsConsumed.With(labels).Inc()
-		RecordsConsumedCounter++
+
+		if stale {
+			recordsConsumedStale.With(labels).Inc()
+		} else {
+			recordsEndToEndLatency.With(labels).Observe(float64(duration))
+			recordsConsumed.With(labels).Inc()
+			RecordsConsumedCounter++
+		}
 	}
 	return nil
 }

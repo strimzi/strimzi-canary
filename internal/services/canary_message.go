@@ -16,6 +16,7 @@ type CanaryMessage struct {
 	ProducerID string `json:"producerId"`
 	MessageID  int    `json:"messageId"`
 	Timestamp  int64  `json:"timestamp"`
+	Sync       string `json:"sync"`
 }
 
 func NewCanaryMessage(bytes []byte) CanaryMessage {
@@ -30,6 +31,6 @@ func (cm CanaryMessage) Json() string {
 }
 
 func (cm CanaryMessage) String() string {
-	return fmt.Sprintf("{ProducerID:%s, MessageID:%d, Timestamp:%d}",
-		cm.ProducerID, cm.MessageID, cm.Timestamp)
+	return fmt.Sprintf("{ProducerID:%s, MessageID:%d, Timestamp:%d Sync:%s}",
+		cm.ProducerID, cm.MessageID, cm.Timestamp, cm.Sync)
 }
