@@ -37,6 +37,12 @@ var (
 		Help:      "The total number of records consumed",
 	}, []string{"clientid", "partition"})
 
+	recordsConsumerFailed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "consumer_error_total",
+		Namespace: "strimzi_canary",
+		Help:      "Total number of errors reported by the consumer",
+	}, []string{"clientid"})
+
 	// it's defined when the service is created because buckets are configurable
 	recordsEndToEndLatency *prometheus.HistogramVec
 
@@ -77,6 +83,16 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 		consumerGroup: consumerGroup,
 		ready:         make(chan bool),
 	}
+	go func() {
+		labels := prometheus.Labels{
+			"clientid":  canaryConfig.ClientID,
+		}
+
+		for err := range consumerGroup.Errors() {
+			glog.Errorf("Error received whilst consuming from topic: %v", err)
+			recordsConsumerFailed.With(labels).Inc()
+		}
+	}()
 	return &cs
 }
 

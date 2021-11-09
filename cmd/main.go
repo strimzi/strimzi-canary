@@ -87,6 +87,8 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 	config.Producer.Partitioner = sarama.NewManualPartitioner
 	config.Producer.Return.Successes = true
 	config.Producer.RequiredAcks = sarama.WaitForAll
+	config.Producer.Retry.Max = 0
+	config.Consumer.Return.Errors = true
 
 	if canaryConfig.SaramaLogEnabled {
 		sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
