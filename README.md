@@ -66,3 +66,22 @@ The `Consuming` field provides information about the `Percentage` of messages co
   }
 }
 ```
+
+## Getting help
+
+If you encounter any issues while using Strimzi, you can get help using:
+
+- [#strimzi channel on CNCF Slack](https://slack.cncf.io/)
+- [Strimzi Users mailing list](https://lists.cncf.io/g/cncf-strimzi-users/topics)
+- [GitHub Discussions](https://github.com/strimzi/strimzi-canary/discussions)
+
+## Contributing
+
+You can contribute by raising any issues you find and/or fixing issues by opening Pull Requests.
+All bugs, tasks or enhancements are tracked as [GitHub issues](https://github.com/strimzi/strimzi-canary/issues).
+
+The [development documentation](./development-docs) describe how to build, test and release Strimzi Canary.
+
+## License
+
+Strimzi is licensed under the [Apache License](./LICENSE), Version 2.0
