@@ -42,7 +42,7 @@ When running the Strimzi canary tool, it is possible to configure different aspe
 
 ## Endpoints
 
-The canary exposes some HTTP endpoints to provide information about status, health and metrics.
+The canary exposes some HTTP endpoints, on port 8080, to provide information about status, health and metrics.
 
 ### Liveness and readiness
 
