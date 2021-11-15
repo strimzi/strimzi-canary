@@ -67,6 +67,116 @@ The `Consuming` field provides information about the `Percentage` of messages co
 }
 ```
 
+## Metrics
+
+In order to check how your Apache Kafka cluster is behaving, the Canary provides the following metrics on the corresponding HTTP endpoint.
+
+| Name | Description |
+| ---- | ----------- |
+| `client_creation_error_total` | Total number of errors while creating Sarama client |
+| `expected_cluster_size_error_total` | Total number of errors while waiting the Kafka cluster having the expected size |
+| `topic_creation_failed_total` | Total number of errors while creating the canary topic |
+| `topic_describe_cluster_error_total` | Total number of errors while describing cluster |
+| `topic_describe_error_total` | Total number of errors while getting canary topic metadata |
+| `topic_alter_assignments_error_total` | Total number of errors while altering partitions assignments for the canary topic |
+| `topic_alter_configuration_error_total` | Total number of errors while altering configuration for the canary topic |
+| `records_produced_total` | The total number of records produced |
+| `records_produced_failed_total` | The total number of records failed to produce |
+| `producer_refresh_metadata_error_total` | Total number of errors while refreshing producer metadata |
+| `records_produced_latency` | Records produced latency in milliseconds |
+| `records_consumed_total` | The total number of records consumed |
+| `consumer_error_total` | Total number of errors reported by the consumer |
+| `consumer_timeout_join_group_total` | The total number of consumers not joining the group within the timeout |
+| `records_consumed_latency` | Records end-to-end latency in milliseconds |
+| `connection_error_total`| Total number of errors while checking the connection to Kafka brokers |
+| `connection_latency` | Latency in milliseconds for established or failed connections |
+
+Following an example of metrics output.
+
+```shell
+# HELP strimzi_canary_records_produced_total The total number of records produced
+# TYPE strimzi_canary_records_produced_total counter
+strimzi_canary_records_produced_total{clientid="strimzi-canary-client",partition="0"} 1
+strimzi_canary_records_produced_total{clientid="strimzi-canary-client",partition="1"} 1
+strimzi_canary_records_produced_total{clientid="strimzi-canary-client",partition="2"} 1
+
+# HELP strimzi_canary_records_consumed_total The total number of records consumed
+# TYPE strimzi_canary_records_consumed_total counter
+strimzi_canary_records_consumed_total{clientid="strimzi-canary-client",partition="0"} 1
+strimzi_canary_records_consumed_total{clientid="strimzi-canary-client",partition="1"} 1
+strimzi_canary_records_consumed_total{clientid="strimzi-canary-client",partition="2"} 1
+
+# HELP strimzi_canary_records_produced_latency Records produced latency in milliseconds
+# TYPE strimzi_canary_records_produced_latency histogram
+strimzi_canary_records_produced_latency_bucket{clientid="strimzi-canary-client",partition="0",le="50"} 0
+strimzi_canary_records_produced_latency_bucket{clientid="strimzi-canary-client",partition="0",le="100"} 0
+...
+strimzi_canary_records_produced_latency_bucket{clientid="strimzi-canary-client",partition="0",le="+Inf"} 1
+strimzi_canary_records_produced_latency_sum{clientid="strimzi-canary-client",partition="0"} 151
+strimzi_canary_records_produced_latency_count{clientid="strimzi-canary-client",partition="0"} 1
+strimzi_canary_records_produced_latency_bucket{clientid="strimzi-canary-client",partition="1",le="50"} 0
+...
+strimzi_canary_records_produced_latency_bucket{clientid="strimzi-canary-client",partition="1",le="+Inf"} 1
+strimzi_canary_records_produced_latency_sum{clientid="strimzi-canary-client",partition="1"} 125
+strimzi_canary_records_produced_latency_count{clientid="strimzi-canary-client",partition="1"} 1
+strimzi_canary_records_produced_latency_bucket{clientid="strimzi-canary-client",partition="2",le="50"} 0
+strimzi_canary_records_produced_latency_bucket{clientid="strimzi-canary-client",partition="2",le="100"} 0
+...
+strimzi_canary_records_produced_latency_bucket{clientid="strimzi-canary-client",partition="2",le="+Inf"} 1
+strimzi_canary_records_produced_latency_sum{clientid="strimzi-canary-client",partition="2"} 263
+strimzi_canary_records_produced_latency_count{clientid="strimzi-canary-client",partition="2"} 1
+
+# HELP strimzi_canary_records_consumed_latency Records end-to-end latency in milliseconds
+# TYPE strimzi_canary_records_consumed_latency histogram
+strimzi_canary_records_consumed_latency_bucket{clientid="strimzi-canary-client",partition="0",le="100"} 0
+strimzi_canary_records_consumed_latency_bucket{clientid="strimzi-canary-client",partition="0",le="200"} 1
+...
+strimzi_canary_records_consumed_latency_bucket{clientid="strimzi-canary-client",partition="0",le="+Inf"} 1
+strimzi_canary_records_consumed_latency_sum{clientid="strimzi-canary-client",partition="0"} 161
+strimzi_canary_records_consumed_latency_count{clientid="strimzi-canary-client",partition="0"} 1
+strimzi_canary_records_consumed_latency_bucket{clientid="strimzi-canary-client",partition="1",le="100"} 0
+strimzi_canary_records_consumed_latency_bucket{clientid="strimzi-canary-client",partition="1",le="200"} 1
+...
+strimzi_canary_records_consumed_latency_bucket{clientid="strimzi-canary-client",partition="1",le="+Inf"} 1
+strimzi_canary_records_consumed_latency_sum{clientid="strimzi-canary-client",partition="1"} 133
+strimzi_canary_records_consumed_latency_count{clientid="strimzi-canary-client",partition="1"} 1
+strimzi_canary_records_consumed_latency_bucket{clientid="strimzi-canary-client",partition="2",le="100"} 0
+strimzi_canary_records_consumed_latency_bucket{clientid="strimzi-canary-client",partition="2",le="200"} 0
+...
+strimzi_canary_records_consumed_latency_bucket{clientid="strimzi-canary-client",partition="2",le="+Inf"} 1
+strimzi_canary_records_consumed_latency_sum{clientid="strimzi-canary-client",partition="2"} 266
+strimzi_canary_records_consumed_latency_count{clientid="strimzi-canary-client",partition="2"} 1
+
+# HELP strimzi_canary_connection_latency Latency in milliseconds for established or failed connections
+# TYPE strimzi_canary_connection_latency histogram
+strimzi_canary_connection_latency_bucket{brokerid="0",connected="true",le="100"} 1
+strimzi_canary_connection_latency_bucket{brokerid="0",connected="true",le="200"} 1
+...
+strimzi_canary_connection_latency_bucket{brokerid="0",connected="true",le="+Inf"} 1
+strimzi_canary_connection_latency_sum{brokerid="0",connected="true"} 23
+strimzi_canary_connection_latency_count{brokerid="0",connected="true"} 1
+strimzi_canary_connection_latency_bucket{brokerid="1",connected="true",le="100"} 1
+strimzi_canary_connection_latency_bucket{brokerid="1",connected="true",le="200"} 1
+...
+strimzi_canary_connection_latency_bucket{brokerid="1",connected="true",le="+Inf"} 1
+strimzi_canary_connection_latency_sum{brokerid="1",connected="true"} 8
+strimzi_canary_connection_latency_count{brokerid="1",connected="true"} 1
+strimzi_canary_connection_latency_bucket{brokerid="2",connected="true",le="100"} 1
+strimzi_canary_connection_latency_bucket{brokerid="2",connected="true",le="200"} 1
+...
+strimzi_canary_connection_latency_bucket{brokerid="2",connected="true",le="+Inf"} 1
+strimzi_canary_connection_latency_sum{brokerid="2",connected="true"} 6
+strimzi_canary_connection_latency_count{brokerid="2",connected="true"} 1
+
+# HELP strimzi_canary_client_creation_error_total Total number of errors while creating Sarama client
+# TYPE strimzi_canary_client_creation_error_total counter
+strimzi_canary_client_creation_error_total 4
+# HELP strimzi_canary_connection_error_total Total number of errors while checking the connection to Kafka brokers
+# TYPE strimzi_canary_connection_error_total counter
+strimzi_canary_connection_error_total{brokerid="1",connected="false"} 1
+strimzi_canary_connection_error_total{brokerid="2",connected="false"} 1
+```
+
 ## Getting help
 
 If you encounter any issues while using Strimzi, you can get help using:
