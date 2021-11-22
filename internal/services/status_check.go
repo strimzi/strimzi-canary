@@ -105,6 +105,7 @@ func (ss *StatusService) StatusHandler() http.Handler {
 		}
 
 		json, _ := json.Marshal(status)
+		rw.Header().Add("Content-Type", "application/json")
 		rw.Write(json)
 	})
 }
