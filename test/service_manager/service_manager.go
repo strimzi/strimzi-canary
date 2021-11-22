@@ -87,7 +87,7 @@ func (c *ServiceManager) StartCanary() {
 // per se it means waiting for container's broker to communicate correctly
 func (c *ServiceManager) waitForBroker() {
 	log.Println("start waiting for broker")
-	timeout := time.After(10 * time.Second)
+	timeout := time.After(120 * time.Second)
 	brokerIsReadyChannel := make(chan bool)
 
 	go func() {
