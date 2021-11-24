@@ -9,6 +9,7 @@ package services
 import (
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -16,6 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/strimzi/strimzi-canary/internal/config"
+	"github.com/strimzi/strimzi-canary/internal/util"
 )
 
 // TopicReconcileResult contains the result of a topic reconcile
@@ -99,7 +101,7 @@ func NewTopicService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Con
 // If a scale up, scale down, scale up happens, it forces a leader election for having preferred leaders
 func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 	result, err := ts.reconcileTopic()
-	if err != nil && err.Error() == "EOF" {
+	if err != nil && (strings.Contains(err.Error(), util.ErrEof) || strings.Contains(err.Error(), util.ErrConnectionResetByPeer)) {
 		// Kafka brokers close connection to the topic service admin client not able to recover
 		// Sarama issues: https://github.com/Shopify/sarama/issues/2042, https://github.com/Shopify/sarama/issues/1796
 		// Workaround closing the topic service with its admin client and the reopen on next reconcile

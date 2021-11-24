@@ -8,6 +8,7 @@ package services
 
 import (
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -125,7 +126,7 @@ func (cs *ConnectionService) connectionCheck() {
 	if cs.isDynamicScalingEnabled() || cs.canaryConfig.ExpectedClusterSize != len(cs.brokers) {
 		cs.brokers, _, err = cs.admin.DescribeCluster()
 		if err != nil {
-			if err.Error() == "EOF" {
+			if strings.Contains(err.Error(), util.ErrEof) || strings.Contains(err.Error(), util.ErrConnectionResetByPeer) {
 				// Kafka brokers close connection to the admin client not able to recover
 				// Sarama issues: https://github.com/Shopify/sarama/issues/2042, https://github.com/Shopify/sarama/issues/1796
 				// Workaround closing the admin client and the reopen on next connection check
