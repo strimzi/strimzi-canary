@@ -122,7 +122,7 @@ func (cs *ConnectionService) connectionCheck() {
 		cs.admin = admin
 	}
 
-	if cs.isDynamicScalingEnabled() || cs.brokers == nil {
+	if cs.isDynamicScalingEnabled() || cs.canaryConfig.ExpectedClusterSize != len(cs.brokers) {
 		cs.brokers, _, err = cs.admin.DescribeCluster()
 		if err != nil {
 			if err.Error() == "EOF" {
