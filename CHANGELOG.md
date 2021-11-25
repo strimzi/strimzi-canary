@@ -8,6 +8,7 @@
 * Updated dependency to Sarama 1.30.0 with Kafka 3.0.0 support (#134)
 * Fixed connection check service missing latency metrics for one broker (#141)
 * Fixed wrong content type "text/plain" returned by status endpoint instead of "application/json" (#144)
+* Fixed canary not recovering after a "connection reset by peer" from brokers (#148)
 
 ## 0.1.0
 
