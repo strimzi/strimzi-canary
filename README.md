@@ -6,7 +6,7 @@
 # Strimzi canary
 
 This repository contains the Strimzi canary tool implementation.
-It acts as an indicator of whether Kafka clusters are operating correctly.
+The canary tool acts as an indicator of whether Kafka clusters are operating correctly.
 This is achieved by creating a canary topic and periodically producing and consuming events on the topic and getting metrics out of these exchanges.
 
 ## Deployment
