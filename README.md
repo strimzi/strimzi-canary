@@ -9,6 +9,37 @@ This repository contains the Strimzi canary tool implementation.
 It acts as an indicator of whether Kafka clusters are operating correctly.
 This is achieved by creating a canary topic and periodically producing and consuming events on the topic and getting metrics out of these exchanges.
 
+## Deployment
+
+In order to deploy the Strimzi canary in the Kubernetes cluster alongside the already running Apache Kafka cluster, first download the installation files from one of the [releases](https://github.com/strimzi/strimzi-canary/releases) you are interested in.
+Unzip the release package and edit the `Deployment` in order to specify the right bootstrap servers for connecting to the Apache Kafka cluster; it is defined by the `KAFKA_BOOTSTRAP_SERVERS` environment variable.
+The provided `Deployment` has also TLS disabled by default (`TLS_ENABLED` as `false`) and the canary producing and consuming messages every 10 seconds (`RECONCILE_INTERVAL_MS` as `"10000"`).
+
+Then just run the following command:
+
+```shell
+kubectl apply -f ./install
+```
+
+Other than creating the corresponding `Deployment`, the canary will run with a specific `ServiceAccount` and a `Service` will be created in order to make the Prometheus metrics accessible via HTTP on port `8080`.
+
+### Encryption and TLS authentication
+
+If the Apache Kafka cluster has the TLS protocol enabled on the listener where the canary should connect to, enable the TLS configuration in the canary `Deployment` using the corresponding environment variables.
+
+The `TLS_ENABLED` has to be set as `true` and the `TLS_CA_CERT` has to contain the cluster CA certificate, in PEM format, used to sign the broker certificates; if left empty, the canary will use the system certificates.
+Leaving the Strimzi Cluster Operator genberating the cluster CA certificate, it can be extracted from the corresponding `<cluster_name>-cluster-ca-cert` `Secret`.
+
+In case of mutual authentication with the need for the canary to be authenticate to the Apache Kafka cluster, the `TLS_CLIENT_CERT` and `TLS_CLIENT_KEY` environment variables have to be set with the client certificate and corresponding private key, in PEM format.
+If using the Strimzi User Operator, those data are provided by the corresponding `Secret` for the `KafkaUser` configured with TLS authentication.
+
+### SASL authentication
+
+If the Apache Kafka cluster has authentication enabled with one of the supported SASL mechanisms as `PLAIN`, `SCRAM-SHA-256` and `SCRAM-SHA-512`, the canary has to be configured to be authenticated as well.
+
+The SASL mechanism has to be defined using the `SASL_MECHANISM` environment variable while username and password by using `SASL_USER` and `SASL_PASSWORD`.
+If using the Strimzi User Operator, those data are provided by the corresponding `Secret` for the `KafkaUser` configured to use one of the SASL authentication mechanisms.
+
 ## Configuration
 
 When running the Strimzi canary tool, it is possible to configure different aspects by using the following environment variables.
