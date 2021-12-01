@@ -6,6 +6,7 @@
 package service_manager
 
 import (
+	"bytes"
 	"log"
 	"os"
 	"os/exec"
@@ -46,9 +47,14 @@ const (
 func (c *ServiceManager) StartKafkaZookeeperContainers() {
 	log.Println("Starting kafka & Zookeeper")
 
-	var cmd = exec.Command("docker-compose", "-f", c.pathDockerComposeKafkaZookeeper, "up", "-d")
-	if err := cmd.Run(); err != nil {
-		log.Fatal(err)
+	errComposingContainers := c.executeCmdWithLogging(
+		"start kafka and Zookeeper containers using docker-compose",
+		"docker-compose",
+		"-f", c.pathDockerComposeKafkaZookeeper, "up", "-d",
+		)
+
+	if  errComposingContainers != nil {
+		log.Fatal(errComposingContainers.Error())
 	}
 	log.Println("Zookeeper and Kafka containers created")
 	// after creation of containers we still have to wait for some time before successful communication with Kafka & Zookeper
@@ -56,9 +62,13 @@ func (c *ServiceManager) StartKafkaZookeeperContainers() {
 }
 
 func (c *ServiceManager) StopKafkaZookeeperContainers() {
-	var cmd = exec.Command("docker-compose", "-f", c.pathDockerComposeKafkaZookeeper, "down")
-	if err := cmd.Start(); err != nil {
-		log.Fatal(err)
+	errStoppingContainers := c.executeCmdWithLogging(
+		"stop kafka and Zookeeper containers using docker-compose",
+		"docker-compose",
+		"-f", c.pathDockerComposeKafkaZookeeper, "down",
+	)
+	if errStoppingContainers != nil {
+		log.Fatal(errStoppingContainers.Error())
 	}
 }
 
@@ -73,7 +83,6 @@ func CreateManager() *ServiceManager {
 	return manager
 }
 
-// Canary topic will not be immediately created, therefore it is up to tests to wait for its creation.
 func (c *ServiceManager) StartCanary() {
 	log.Println("Starting Canary")
 	c.setUpCanaryParamsViaEnv()
@@ -109,10 +118,37 @@ func (c *ServiceManager) waitForBroker() {
 
 	select {
 	case <-timeout:
-		log.Fatal("Broker isn't ready within expected timeout")
+		log.Println("Broker isn't ready within expected timeout")
+		errObtainingLogs := c.executeCmdWithLogging(
+			"obtain logs from zookeeper and kafka containers",
+			"docker-compose",
+			"-f", pathToDockerComposeImage, "logs",
+			)
+		if errObtainingLogs != nil {
+			log.Println("Problem obtaining logs from kafka and zookeeper containers")
+			log.Fatal(errObtainingLogs.Error())
+		}
+		log.Fatal("containers are not in suitable state")
 	case <-brokerIsReadyChannel:
 		log.Println("Container (Broker) is ready")
 	}
+}
+
+func (c *ServiceManager) executeCmdWithLogging( commandDescription ,commandName string, commandArgs ...string) error{
+
+	cmd := exec.Command(commandName, commandArgs...)
+	var stdout, stderr bytes.Buffer
+	// redirect Stdout and Stderr of command to buffers
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	// execute command
+	err := cmd.Run()
+	// log Stdout Stderr from command (stored within buffer)
+	outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
+	log.Println(commandDescription)
+	log.Printf("STDOUT:\n%s",outStr)
+	log.Printf("STDERR:\n%s",errStr)
+	return err
 }
 
 func (c *ServiceManager) setUpCanaryParamsViaEnv() {
