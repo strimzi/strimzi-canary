@@ -4,18 +4,15 @@ Some resources for experimenting with strimzi-canary
 Make sure that you have your strimzi-canary docker image. If not, build strimzi-canary and
 make its image available to your cluster.
 
-2. Installing strimzi-canary and and its pod monitor to your cluster
-(Skip this step if you have already installed strizmi-canary and its metrics data is available in your prometheus.)
+Assuming you already have installed strimzi and its monitoring stack [https://strimzi.io/docs/operators/latest/deploying.html#assembly-metrics-setup-str], and strimzi-canary (e.g., installed ts package/install/*.yaml files)
 
-This is a very simple deployment that installs one instance of strimzi-canary for experimentation.
+2. Install the pod-monitor for strimzi-canary by installing canary-monitor.yaml
 
-Edit canary.yaml and canary-monitor.yaml to adjust some parameters such as the image name, KAFKA_BOOTSTRAP_SERVERS,
-the namespace selector to match your installation.
+Edit canary-monitor.yaml to adjust some parameters such as the namespace selector to match your kafka installation.
 
-Execute the commands:
+Execute the commands (assuming your kafka is installed at namespace my-kafka-project):
 
- kubectl apply -f canary.yaml
- kubectl apply -f canary-monitor.yaml
+ kubectl -n my-kafka-project apply -f canary-monitor.yaml
 
 3. Installing the grafana dashboard
 

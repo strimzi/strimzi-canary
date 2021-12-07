@@ -7,10 +7,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      strimzi.io/kind: Canary
+      app: strimzi-canary
   namespaceSelector:
     matchNames:
-      - my-kafka
+      # set the namespae where you deploy your kafka cluster
+      - my-kafka-project
   podMetricsEndpoints:
   - path: /metrics
-    port: rest-api
+    port: metrics
