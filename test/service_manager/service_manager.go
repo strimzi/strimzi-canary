@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -62,6 +63,7 @@ func (c *ServiceManager) StartKafkaZookeeperContainers() {
 }
 
 func (c *ServiceManager) StopKafkaZookeeperContainers() {
+	log.Println("Stopping kafka & Zookeeper")
 	errStoppingContainers := c.executeCmdWithLogging(
 		"stop kafka and Zookeeper containers using docker-compose",
 		"docker-compose",
@@ -96,7 +98,7 @@ func (c *ServiceManager) StartCanary() {
 // per se it means waiting for container's broker to communicate correctly
 func (c *ServiceManager) waitForBroker() {
 	log.Println("start waiting for broker")
-	timeout := time.After(120 * time.Second)
+	timeout := time.After(30 * time.Second)
 	brokerIsReadyChannel := make(chan bool)
 
 	go func() {
@@ -145,9 +147,10 @@ func (c *ServiceManager) executeCmdWithLogging( commandDescription ,commandName 
 	err := cmd.Run()
 	// log Stdout Stderr from command (stored within buffer)
 	outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
-	log.Println(commandDescription)
-	log.Printf("STDOUT:\n%s",outStr)
-	log.Printf("STDERR:\n%s",errStr)
+	log.Printf("cmd description: %s\n", commandDescription)
+	log.Printf("execute cmd: %s %s\n", commandName, strings.Join( commandArgs ," "))
+	log.Printf("cmd stdout:\n%s", outStr)
+	log.Printf("cmd stderr:\n%s", errStr)
 	return err
 }
 
