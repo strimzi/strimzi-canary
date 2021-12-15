@@ -213,6 +213,26 @@ strimzi_canary_connection_error_total{brokerid="1",connected="false"} 1
 strimzi_canary_connection_error_total{brokerid="2",connected="false"} 1
 ```
 
+### Using Prometheus and Grafana
+
+You can use Prometheus to visualize the above metrics on the example Grafana dashboard. The PodMonitor resource file and the example Grafana dashboard file are available in the [metrics example directory](https://github.com/strimzi/strimzi-canary/tree/main/packaging/examples/metrics).
+
+If you have not enabled Prometheus and Grafana for your Apache Kafka cluster, follow the instruction given in Strimzi documentation sections
+[Using Prometheus with Strimzi](https://strimzi.io/docs/operators/latest/deploying.html#assembly-metrics-setup-str) and
+[Enabling the example Grafana dashboards](https://strimzi.io/docs/operators/latest/deploying.html#proc-metrics-grafana-dashboard-str) to deploy and setup Prometheus and Grafana, respectively.
+
+To deploy the PodMonitor resource for Strimzi canary and to use the example Grafana dashboard,
+edit the `PodMonitor` resource in `prometheus-install/canary-monitor.yaml` to
+set the `namespaceSelector.matchNames` property to the namespace where Strimzi canary is deployed, and
+run the following command:
+
+```shell
+kubectl apply -f prometheus-install/canary-monitor.yaml
+```
+
+Finally, import the dashboard file `grafana-dashboards/strimzi-kafka-canary.json` into Grafana.
+
+
 ## Getting help
 
 If you encounter any issues while using Strimzi, you can get help using:
