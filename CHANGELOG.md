@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.3.0
+
+* Added Prometheus support via `PodMonitor` and sample Grafana dashboard for exposed metrics
+
 ## 0.2.0
 
 * Added support for SCRAM-SHA-256 and SCRAM-SHA-512 authentication (#130)
