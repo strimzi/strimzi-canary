@@ -30,6 +30,6 @@ make docker_build docker_push
 It is possible to customize the container image build by using the following environment variables:
 
 * `DOCKER_REGISTRY`: the Docker registry where the image will be pushed (default is `docker.io`).
-* `DOCKER_ORG`: the Docker organization for tagging/pushing the image (defaults to the value of t.he $USER environment variable).
+* `DOCKER_ORG`: the Docker organization for tagging/pushing the image (defaults to the value of the $USER environment variable).
 * `DOCKER_TAG`: the Docker tag (default is `latest`).
 * `DOCKER_REPO`: the Docker repository where the image will be pushed (default is `canary`).
