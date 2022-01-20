@@ -20,5 +20,5 @@ func NowInMilliseconds() int64 {
 
 // IsDisconnection returns true if the err provided represents a TCP disconnection
 func IsDisconnection(err error) bool {
-	return errors.Is(err, io.EOF) || errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE)
+	return errors.Is(err, io.EOF) || errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ETIMEDOUT)
 }
