@@ -9,7 +9,7 @@ package util
 import (
 	"errors"
 	"io"
-	"syscall"
+	"net"
 	"time"
 )
 
@@ -20,5 +20,8 @@ func NowInMilliseconds() int64 {
 
 // IsDisconnection returns true if the err provided represents a TCP disconnection
 func IsDisconnection(err error) bool {
-	return errors.Is(err, io.EOF) || errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ETIMEDOUT)
+	if _, ok := err.(net.Error); ok  {
+		return true
+	}
+	return errors.Is(err, io.EOF)
 }

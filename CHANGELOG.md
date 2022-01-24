@@ -4,6 +4,7 @@
 
 * Added Prometheus support via `PodMonitor` and sample Grafana dashboard for exposed metrics
 * Treat ETIMEDOUT (TCP keep-alive failure) as a disconnection condition too
+* Handle i/o timeout errors (#162)
 
 ## 0.2.0
 
