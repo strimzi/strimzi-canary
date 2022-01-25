@@ -9,6 +9,7 @@ package util
 import (
 	"errors"
 	"io"
+	"os"
 	"syscall"
 	"testing"
 )
@@ -24,6 +25,7 @@ func TestIsDisconnection(t *testing.T) {
 		{syscall.EPIPE, true},
 		{syscall.ECONNRESET, true},
 		{syscall.ETIMEDOUT, true},
+		{os.ErrDeadlineExceeded, true},
 	}
 
 	for _, tst := range cases {
