@@ -22,6 +22,7 @@ func TestIsDisconnection(t *testing.T) {
 		{errors.New("foobar"), false},
 		{io.EOF, true},
 		{syscall.EPIPE, true},
+		{syscall.ECONNRESET, true},
 		{syscall.ETIMEDOUT, true},
 	}
 
