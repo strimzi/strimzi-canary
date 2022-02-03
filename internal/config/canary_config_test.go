@@ -9,6 +9,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -33,8 +34,8 @@ func TestConfigDefault(t *testing.T) {
 	assertBucketsConfigParameter(c.EndToEndLatencyBuckets, endToEndLatencyBucketsDefault, t)
 	assertIntConfigParameter(c.ExpectedClusterSize, ExpectedClusterSizeDefault, t)
 	assertStringConfigParameter(c.KafkaVersion, KafkaVersionDefault, t)
-	assertBoolConfigParameter(c.SaramaLogEnabled, SaramaLogEnabledDefault, t)
-	assertIntConfigParameter(c.VerbosityLogLevel, VerbosityLogLevelDefault, t)
+	assertBoolConfigParameter(*c.SaramaLogEnabled, SaramaLogEnabledDefault, t)
+	assertIntConfigParameter(*c.VerbosityLogLevel, VerbosityLogLevelDefault, t)
 	assertBoolConfigParameter(c.TLSEnabled, TLSEnabledDefault, t)
 	assertStringConfigParameter(c.TLSCACert, TLSCACertDefault, t)
 	assertStringConfigParameter(c.TLSClientCert, TLSClientCertDefault, t)
@@ -94,8 +95,8 @@ func TestConfigCustom(t *testing.T) {
 	assertBucketsConfigParameter(c.EndToEndLatencyBuckets, endToEndLatencyBuckets, t)
 	assertIntConfigParameter(c.ExpectedClusterSize, 3, t)
 	assertStringConfigParameter(c.KafkaVersion, "2.6.0", t)
-	assertBoolConfigParameter(c.SaramaLogEnabled, true, t)
-	assertIntConfigParameter(c.VerbosityLogLevel, 1, t)
+	assertBoolConfigParameter(*c.SaramaLogEnabled, true, t)
+	assertIntConfigParameter(*c.VerbosityLogLevel, 1, t)
 	assertBoolConfigParameter(c.TLSEnabled, true, t)
 	assertStringConfigParameter(c.TLSCACert, "CA cert", t)
 	assertStringConfigParameter(c.TLSClientCert, "Client cert", t)
@@ -127,6 +128,15 @@ func TestTopicConfigurationInvalidKeyValuePair(t *testing.T) {
 
 func TestTopicConfigurationEmptyKeyValuePair(t *testing.T) {
 	defer func() { recover() }()
+	os.Setenv(TopicConfigEnvVar, ";;;;segment.bytes=16384;cleanup.policy=compact,delete")
+	NewCanaryConfig()
+	t.Errorf("Should have been panicked!")
+}
+
+func TestStringer(t *testing.T) {
+	defer func() { recover() }()
+	config := NewCanaryConfig()
+	fmt.Println(config.String())
 	os.Setenv(TopicConfigEnvVar, ";;;;segment.bytes=16384;cleanup.policy=compact,delete")
 	NewCanaryConfig()
 	t.Errorf("Should have been panicked!")

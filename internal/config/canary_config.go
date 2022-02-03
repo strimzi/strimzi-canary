@@ -45,6 +45,8 @@ const (
 	ConnectionCheckLatencyBucketsEnvVar = "CONNECTION_CHECK_LATENCY_BUCKETS"
 	StatusCheckIntervalEnvVar           = "STATUS_CHECK_INTERVAL_MS"
 	StatusTimeWindowEnvVar              = "STATUS_TIME_WINDOW_MS"
+	MutableConfigFileEnvVar             = "MUTABLE_CONFIG_FILE"
+	MutableConfigWatcherIntervalEnvVar  = "MUTABLE_CONFIG_WATCHER_INTERVAL"
 
 	// default values for environment variables
 	BootstrapServersDefault              = "localhost:9092"
@@ -73,10 +75,18 @@ const (
 	ConnectionCheckLatencyBucketsDefault = "100,200,400,800,1600"
 	StatusCheckIntervalDefault           = 30000
 	StatusTimeWindowDefault              = 300000
+	MutableConfigFileDefault             = ""
+	MutableConfigWatcherIntervalDefault  = 30000
 )
+
+type MutableCanaryConfig struct {
+	SaramaLogEnabled              *bool `json:"saramaLogEnabled"`
+	VerbosityLogLevel             *int  `json:"verbosityLogLevel"`
+}
 
 // CanaryConfig defines the canary tool configuration
 type CanaryConfig struct {
+	*MutableCanaryConfig
 	BootstrapServers              []string
 	BootstrapBackoffMaxAttempts   int
 	BootstrapBackoffScale         time.Duration
@@ -89,8 +99,7 @@ type CanaryConfig struct {
 	EndToEndLatencyBuckets        []float64
 	ExpectedClusterSize           int
 	KafkaVersion                  string
-	SaramaLogEnabled              bool
-	VerbosityLogLevel             int
+	MutableConfigFile             string
 	TLSEnabled                    bool
 	TLSCACert                     string
 	TLSClientCert                 string
@@ -103,11 +112,42 @@ type CanaryConfig struct {
 	ConnectionCheckLatencyBuckets []float64
 	StatusCheckInterval           time.Duration
 	StatusTimeWindow              time.Duration
+	MutableConfigWatcherInterval  time.Duration
+}
+
+func NewMutableCanaryConfig() *MutableCanaryConfig {
+	saramaLogEnabled := lookupBoolEnv(SaramaLogEnabledEnvVar, SaramaLogEnabledDefault)
+	verbosityLogLevel := lookupIntEnv(VerbosityLogLevelEnvVar, VerbosityLogLevelDefault)
+	mutableCanaryConfig := MutableCanaryConfig{
+		SaramaLogEnabled:  &saramaLogEnabled,
+		VerbosityLogLevel: &verbosityLogLevel,
+	}
+	return &mutableCanaryConfig
+}
+
+func (c MutableCanaryConfig) String() string {
+	commaPad := func (str string) string {
+		if len(str) > 0 {
+			str = str + ", "
+		}
+		return str
+	}
+
+	str := "{"
+	if c.SaramaLogEnabled != nil {
+		str = str + fmt.Sprintf("SaramaLogEnabled:%t", *c.SaramaLogEnabled)
+	}
+	if c.VerbosityLogLevel != nil {
+		str = commaPad(str) + fmt.Sprintf("VerbosityLogLevel:%d", *c.VerbosityLogLevel)
+	}
+	str = str + "}"
+	return str
 }
 
 // NewCanaryConfig returns an configuration instance from environment variables
 func NewCanaryConfig() *CanaryConfig {
-	var config CanaryConfig = CanaryConfig{
+	config := CanaryConfig{
+		MutableCanaryConfig:	       NewMutableCanaryConfig(),
 		BootstrapServers:              strings.Split(lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault), ","),
 		BootstrapBackoffMaxAttempts:   lookupIntEnv(BootstrapBackoffMaxAttemptsEnvVar, BootstrapBackoffMaxAttemptsDefault),
 		BootstrapBackoffScale:         time.Duration(lookupIntEnv(BootstrapBackoffScaleEnvVar, BootstrapBackoffScaleDefault)),
@@ -120,8 +160,6 @@ func NewCanaryConfig() *CanaryConfig {
 		EndToEndLatencyBuckets:        latencyBuckets(lookupStringEnv(EndToEndLatencyBucketsEnvVar, EndToEndLatencyBucketsDefault)),
 		ExpectedClusterSize:           lookupIntEnv(ExpectedClusterSizeEnvVar, ExpectedClusterSizeDefault),
 		KafkaVersion:                  lookupStringEnv(KafkaVersionEnvVar, KafkaVersionDefault),
-		SaramaLogEnabled:              lookupBoolEnv(SaramaLogEnabledEnvVar, SaramaLogEnabledDefault),
-		VerbosityLogLevel:             lookupIntEnv(VerbosityLogLevelEnvVar, VerbosityLogLevelDefault),
 		TLSEnabled:                    lookupBoolEnv(TLSEnabledEnvVar, TLSEnabledDefault),
 		TLSCACert:                     lookupStringEnv(TLSCACertEnvVar, TLSCACertDefault),
 		TLSClientCert:                 lookupStringEnv(TLSClientCertEnvVar, TLSClientCertDefault),
@@ -134,6 +172,8 @@ func NewCanaryConfig() *CanaryConfig {
 		ConnectionCheckLatencyBuckets: latencyBuckets(lookupStringEnv(ConnectionCheckLatencyBucketsEnvVar, ConnectionCheckLatencyBucketsDefault)),
 		StatusCheckInterval:           time.Duration(lookupIntEnv(StatusCheckIntervalEnvVar, StatusCheckIntervalDefault)),
 		StatusTimeWindow:              time.Duration(lookupIntEnv(StatusTimeWindowEnvVar, StatusTimeWindowDefault)),
+		MutableConfigFile:             lookupStringEnv(MutableConfigFileEnvVar, MutableConfigFileDefault),
+		MutableConfigWatcherInterval:  time.Duration(lookupIntEnv(MutableConfigWatcherIntervalEnvVar, MutableConfigWatcherIntervalDefault)),
 	}
 	return &config
 }
@@ -230,10 +270,12 @@ func (c CanaryConfig) String() string {
 
 	return fmt.Sprintf("{BootstrapServers:%s, BootstrapBackoffMaxAttempts:%d, BootstrapBackoffScale:%d, Topic:%s, TopicConfig:%v, ReconcileInterval:%d ms, "+
 		"ClientID:%s, ConsumerGroupID:%s, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d, KafkaVersion:%s,"+
-		"SaramaLogEnabled:%t, VerbosityLogLevel:%d, TLSEnabled:%t, TLSCACert:%s, TLSClientCert:%s, TLSClientKey:%s, TLSInsecureSkipVerify:%t,"+
-		"SASLMechanism:%s, SASLUser:%s, SASLPassword:%s, ConnectionCheckInterval:%d ms, ConnectionCheckLatencyBuckets:%v, StatusCheckInterval:%d ms, StatusTimeWindow:%d ms}",
+		"TLSEnabled:%t, TLSCACert:%s, TLSClientCert:%s, TLSClientKey:%s, TLSInsecureSkipVerify:%t,"+
+		"SASLMechanism:%s, SASLUser:%s, SASLPassword:%s, ConnectionCheckInterval:%d ms, ConnectionCheckLatencyBuckets:%v, StatusCheckInterval:%d ms, StatusTimeWindow:%d ms," +
+		"MutableConfigFile: %s, MutableCanaryConfig: %s, MutableConfigWatcherInterval: %d ms}",
 		c.BootstrapServers, c.BootstrapBackoffMaxAttempts, c.BootstrapBackoffScale, c.Topic, c.TopicConfig, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
-		c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion, c.SaramaLogEnabled, c.VerbosityLogLevel,
+		c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion,
 		c.TLSEnabled, TLSCACert, TLSClientCert, TLSClientKey, c.TLSInsecureSkipVerify, c.SASLMechanism, SASLUser, SASLPassword,
-		c.ConnectionCheckInterval, c.ConnectionCheckLatencyBuckets, c.StatusCheckInterval, c.StatusTimeWindow)
+		c.ConnectionCheckInterval, c.ConnectionCheckLatencyBuckets, c.StatusCheckInterval, c.StatusTimeWindow,
+		c.MutableConfigFile, c.MutableCanaryConfig, c.MutableConfigWatcherInterval)
 }
