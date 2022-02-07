@@ -40,8 +40,8 @@ func NewMutableConfigWatcher(canaryConfig *CanaryConfig, applyFunc func(config *
 					if _, err := os.Stat(canaryConfig.MutableConfigFile); err == nil {
 						mutableConfigWatcher.exists = true
 						target, hsh, err := readAndHash(canaryConfig.MutableConfigFile)
-						if err != nil {
-							glog.Warningf("failed to hash %s : %v (ignored)", canaryConfig.MutableConfigFile, err)
+						if err != nil || target == nil {
+							glog.Warningf("failed to read and hash %s : %v (ignored)", canaryConfig.MutableConfigFile, err)
 							continue
 						}
 						if hsh == mutableConfigWatcher.hash {

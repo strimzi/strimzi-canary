@@ -44,7 +44,7 @@ func main() {
 		glog.Errorf("Error on setting logtostderr to true")
 	}
 
-	applyMutableConfig(canaryConfig.MutableCanaryConfig)
+	applyMutableConfig(&canaryConfig.MutableCanaryConfig)
 
 	glog.Infof("Starting Strimzi canary tool [%s] with config: %+v", version, canaryConfig)
 

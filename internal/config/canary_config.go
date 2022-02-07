@@ -86,7 +86,7 @@ type MutableCanaryConfig struct {
 
 // CanaryConfig defines the canary tool configuration
 type CanaryConfig struct {
-	*MutableCanaryConfig
+	MutableCanaryConfig
 	BootstrapServers              []string
 	BootstrapBackoffMaxAttempts   int
 	BootstrapBackoffScale         time.Duration
@@ -146,8 +146,9 @@ func (c MutableCanaryConfig) String() string {
 
 // NewCanaryConfig returns an configuration instance from environment variables
 func NewCanaryConfig() *CanaryConfig {
+	mutableCanaryConfig := NewMutableCanaryConfig()
 	config := CanaryConfig{
-		MutableCanaryConfig:	       NewMutableCanaryConfig(),
+		MutableCanaryConfig:           *mutableCanaryConfig,
 		BootstrapServers:              strings.Split(lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault), ","),
 		BootstrapBackoffMaxAttempts:   lookupIntEnv(BootstrapBackoffMaxAttemptsEnvVar, BootstrapBackoffMaxAttemptsDefault),
 		BootstrapBackoffScale:         time.Duration(lookupIntEnv(BootstrapBackoffScaleEnvVar, BootstrapBackoffScaleDefault)),
