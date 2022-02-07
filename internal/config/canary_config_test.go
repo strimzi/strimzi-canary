@@ -9,7 +9,6 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -128,15 +127,6 @@ func TestTopicConfigurationInvalidKeyValuePair(t *testing.T) {
 
 func TestTopicConfigurationEmptyKeyValuePair(t *testing.T) {
 	defer func() { recover() }()
-	os.Setenv(TopicConfigEnvVar, ";;;;segment.bytes=16384;cleanup.policy=compact,delete")
-	NewCanaryConfig()
-	t.Errorf("Should have been panicked!")
-}
-
-func TestStringer(t *testing.T) {
-	defer func() { recover() }()
-	config := NewCanaryConfig()
-	fmt.Println(config.String())
 	os.Setenv(TopicConfigEnvVar, ";;;;segment.bytes=16384;cleanup.policy=compact,delete")
 	NewCanaryConfig()
 	t.Errorf("Should have been panicked!")
