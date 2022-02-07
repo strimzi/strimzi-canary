@@ -48,47 +48,49 @@ If you're using the Strimzi User Operator, the values for these environment vari
 ## Configuration
 
 When running the Strimzi canary tool, it is possible to configure different aspects by using the environment variables listed in the following table.
-
-In addition, certain aspects can be overridden dynamically at runtime from a JSON configuration file.  Where this is possible, a field name is provided in the
-table. The configuration file described in more detail the next section.
+In addition, certain aspects can be overridden dynamically at runtime from a JSON configuration file.
+Where this is possible, a field name is provided in the table.
+The configuration file described in more detail the next section.
 
 | Environment variable | Description | Default | Config key |
 |---|---|---|---|
-| `KAFKA_BOOTSTRAP_SERVERS` | comma separated bootstrap servers of the Kafka cluster to connect to. | `localhost:9092` |  |
-| `KAFKA_BOOTSTRAP_BACKOFF_MAX_ATTEMPTS` | maximum number of attempts for connecting to the Kafka cluster if it is not ready yet. | `10` |  |
-| `KAFKA_BOOTSTRAP_BACKOFF_SCALE` | the scale used to delay between attempts to connect to the Kafka cluster (in ms) | `5000` |  |
-| `TOPIC` | the name of the topic used by the tool to send and receive messages. | `__strimzi_canary` |  |
-| `TOPIC_CONFIG` | topic configuration defined as a list of semicolon separated `key=value` pairs (i.e. `retention.ms=600000;segment.bytes=16384`). | empty |  |
-| `RECONCILE_INTERVAL_MS` | it defines how often the tool has to send and receive messages (in ms). | `30000` |  |
-| `CLIENT_ID` | the client id used for configuring producer and consumer. | `strimzi-canary-client` |  |
-| `CONSUMER_GROUP_ID` | group id for the consumer group joined by the canary consumer. | `strimzi-canary-group` |  |
-| `PRODUCER_LATENCY_BUCKETS` | buckets of the histogram related to the producer latency metric (in ms). | `100,200,400,800,1600` |  |
-| `ENDTOEND_LATENCY_BUCKETS` | buckets of the histogram related to the end to end latency metric between producer and consumer (in ms). | `100,200,400,800,1600` |  |
-| `EXPECTED_CLUSTER_SIZE` | expected number of brokers in the Kafka cluster where the canary connects to. This parameter avoids that the tool runs more partitions reassignment of the topic while the Kafka cluster is starting up and the brokers are coming one by one. `-1` means "dynamic" reassignment as described above. When greater than 0, the canary waits for the Kafka cluster having the expected number of brokers running before creating the topic and assigning the partitions | `-1` |  |
-| `KAFKA_VERSION` | version of the Kafka cluster | `2.8.0` |  |
-| `SARAMA_LOG_ENABLED` | enables the Sarama client logging. | `false` | `saramaLogEnabled` |
-| `VERBOSITY_LOG_LEVEL` | verbosity of the tool logging. Allowed values 0 = INFO, 1 = DEBUG, 2 = TRACE | `0` | `verbosityLogLevel` |
-| `TLS_ENABLED` | if the canary has to use TLS to connect to the Kafka cluster. | `false` |  |
+| `KAFKA_BOOTSTRAP_SERVERS` | Comma separated bootstrap servers of the Kafka cluster to connect to. | `localhost:9092` |  |
+| `KAFKA_BOOTSTRAP_BACKOFF_MAX_ATTEMPTS` | Maximum number of attempts for connecting to the Kafka cluster if it is not ready yet. | `10` |  |
+| `KAFKA_BOOTSTRAP_BACKOFF_SCALE` | The scale used to delay between attempts to connect to the Kafka cluster (in ms) | `5000` |  |
+| `TOPIC` | The name of the topic used by the tool to send and receive messages. | `__strimzi_canary` |  |
+| `TOPIC_CONFIG` | Topic configuration defined as a list of semicolon separated `key=value` pairs (i.e. `retention.ms=600000;segment.bytes=16384`). | empty |  |
+| `RECONCILE_INTERVAL_MS` | It defines how often the tool has to send and receive messages (in ms). | `30000` |  |
+| `CLIENT_ID` | The client id used for configuring producer and consumer. | `strimzi-canary-client` |  |
+| `CONSUMER_GROUP_ID` | Group id for the consumer group joined by the canary consumer. | `strimzi-canary-group` |  |
+| `PRODUCER_LATENCY_BUCKETS` | Buckets of the histogram related to the producer latency metric (in ms). | `100,200,400,800,1600` |  |
+| `ENDTOEND_LATENCY_BUCKETS` | Buckets of the histogram related to the end to end latency metric between producer and consumer (in ms). | `100,200,400,800,1600` |  |
+| `EXPECTED_CLUSTER_SIZE` | Expected number of brokers in the Kafka cluster where the canary connects to. This parameter avoids that the tool runs more partitions reassignment of the topic while the Kafka cluster is starting up and the brokers are coming one by one. `-1` means "dynamic" reassignment as described above. When greater than 0, the canary waits for the Kafka cluster having the expected number of brokers running before creating the topic and assigning the partitions | `-1` |  |
+| `KAFKA_VERSION` | Version of the Kafka cluster | `2.8.0` |  |
+| `SARAMA_LOG_ENABLED` | Enables the Sarama client logging. | `false` | `saramaLogEnabled` |
+| `VERBOSITY_LOG_LEVEL` | Verbosity of the tool logging. Allowed values 0 = INFO, 1 = DEBUG, 2 = TRACE | `0` | `verbosityLogLevel` |
+| `TLS_ENABLED` | If the canary has to use TLS to connect to the Kafka cluster. | `false` |  |
 | `TLS_CA_CERT` | TLS CA certificate, in PEM format, to use to connect to the Kafka cluster. When this parameter is empty (default behaviour) and the TLS connection is enabled, the canary uses the system certificates trust store. When a TLS CA certificate is specified, it is added to the system certificates trust store | empty |  |
 | `TLS_CLIENT_CERT` | TLS client certificate, in PEM format, to use for enabling TLS client authentication against the Kafka cluster. | empty |  |
 | `TLS_CLIENT_KEY` | TLS client private key, in PEM format, to use for enabling TLS client authentication against the Kafka cluster. | empty |  |
 | `TLS_INSECURE_SKIP_VERIFY` | if the underneath Sarama client has to verify the server's certificate chain and host name. | `false` |  |
-| `SASL_MECHANISM` | mechanism to use for SASL authentication against the Kafka cluster. Supported are `PLAIN`, `SCRAM-SHA-256` and `SCRAM-SHA-512`. | empty |  |
-| `SASL_USER` | username for SASL authentication against the Kafka cluster when one of `PLAIN`, `SCRAM-SHA-256` or `SCRAM-SHA-512` is used. | empty |  |
-| `SASL_PASSWORD` | password for SASL authentication against the Kafka cluster when one of `PLAIN`, `SCRAM-SHA-256` or `SCRAM-SHA-512` is used. | empty |  |
-| `CONNECTION_CHECK_INTERVAL_MS` | it defines how often the tool has to check the connection with brokers (in ms). | `120000` |  |
-| `CONNECTION_CHECK_LATENCY_BUCKETS` | buckets of the histogram related to the broker's connection latency metric (in ms). | `100,200,400,800,1600` |  |
-| `STATUS_CHECK_INTERVAL_MS` | it defines how often (in ms) the tool updates internal status information (i.e. percentage of consumed messages) to expose outside on the corresponding HTTP endpoint. | `30000` |  |
-| `STATUS_TIME_WINDOW_MS` | it defines the sliding time window size (in ms) in which status information are sampled. | `300000` |  |
-| `MUTABLE_CONFIG_FILE` | location of an optional external config file that provides configuration at runtime . | empty |  |
-| `MUTABLE_CONFIG_WATCHER_INTERVAL` | interval that mutable config file is examined for changes in content (in ms)  | `30000` |  |
+| `SASL_MECHANISM` | Mechanism to use for SASL authentication against the Kafka cluster. Supported are `PLAIN`, `SCRAM-SHA-256` and `SCRAM-SHA-512`. | empty |  |
+| `SASL_USER` | Username for SASL authentication against the Kafka cluster when one of `PLAIN`, `SCRAM-SHA-256` or `SCRAM-SHA-512` is used. | empty |  |
+| `SASL_PASSWORD` | Password for SASL authentication against the Kafka cluster when one of `PLAIN`, `SCRAM-SHA-256` or `SCRAM-SHA-512` is used. | empty |  |
+| `CONNECTION_CHECK_INTERVAL_MS` | It defines how often the tool has to check the connection with brokers (in ms). | `120000` |  |
+| `CONNECTION_CHECK_LATENCY_BUCKETS` | Buckets of the histogram related to the broker's connection latency metric (in ms). | `100,200,400,800,1600` |  |
+| `STATUS_CHECK_INTERVAL_MS` | It defines how often (in ms) the tool updates internal status information (i.e. percentage of consumed messages) to expose outside on the corresponding HTTP endpoint. | `30000` |  |
+| `STATUS_TIME_WINDOW_MS` | It defines the sliding time window size (in ms) in which status information are sampled. | `300000` |  |
+| `MUTABLE_CONFIG_FILE` | Location of an optional external config file that provides configuration at runtime . | empty |  |
+| `MUTABLE_CONFIG_WATCHER_INTERVAL` | Interval that mutable config file is examined for changes in content (in ms)  | `30000` |  |
 
 
 ## Configuration file
 
-As mentioned above certain aspects of behaviour can be overridden dynamically at runtime from a JSON configuration file.   If a config file reference is
-provided (`MUTABLE_CONFIG_FILE`), that file will be monitored for changes in content and creation/deletion, with any changes being applied dynamically to the
-Canary's runtime state.  In a kubernetes environment this file could be provided by a projected configmap.
+As mentioned above certain aspects of behaviour can be overridden dynamically at runtime from a JSON configuration file.
+If a config file reference is provided by `MUTABLE_CONFIG_FILE`, that file will be monitored for changes in content and creation/deletion, with any changes being applied dynamically to the Canary's runtime state.
+Configuration values by the config file take precedence over configuration values provided by equivalent environment variable.
+
+In a kubernetes environment this file could be provided by a projected configmap.
 
 ```json
 {
