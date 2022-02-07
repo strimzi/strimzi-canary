@@ -44,13 +44,13 @@ func main() {
 		glog.Errorf("Error on setting logtostderr to true")
 	}
 
-	applyMutableConfig(&canaryConfig.MutableCanaryConfig)
+	applyDynamicConfig(&canaryConfig.DynamicCanaryConfig)
 
 	glog.Infof("Starting Strimzi canary tool [%s] with config: %+v", version, canaryConfig)
 
-	mutableConfigWatcher, err := config.NewMutableConfigWatcher(canaryConfig, applyMutableConfig, config.NewMutableCanaryConfig)
+	dynamicConfigWatcher, err := config.NewDynamicConfigWatcher(canaryConfig, applyDynamicConfig, config.NewDynamicCanaryConfig)
 	if err != nil {
-		glog.Fatalf("Failed to create mutable config watcher: %v", err)
+		glog.Fatalf("Failed to create dynamic config watcher: %v", err)
 	}
 
 	statusService := services.NewStatusServiceService(canaryConfig)
@@ -77,7 +77,7 @@ func main() {
 	glog.Infof("Got signal: %v", sig)
 	canaryManager.Stop()
 	httpServer.Stop()
-	mutableConfigWatcher.Close()
+	dynamicConfigWatcher.Close()
 
 	glog.Infof("Strimzi canary stopped")
 }
@@ -128,16 +128,16 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 	}
 }
 
-func applyMutableConfig(mutableCanaryConfig *config.MutableCanaryConfig) {
-	if mutableCanaryConfig.VerbosityLogLevel != nil {
-		flag.Set("v", strconv.Itoa(*mutableCanaryConfig.VerbosityLogLevel))
+func applyDynamicConfig(dynamicCanaryConfig *config.DynamicCanaryConfig) {
+	if dynamicCanaryConfig.VerbosityLogLevel != nil {
+		flag.Set("v", strconv.Itoa(*dynamicCanaryConfig.VerbosityLogLevel))
 		flag.Parse()
 	}
 
-	if mutableCanaryConfig.SaramaLogEnabled != nil && *mutableCanaryConfig.SaramaLogEnabled {
+	if dynamicCanaryConfig.SaramaLogEnabled != nil && *dynamicCanaryConfig.SaramaLogEnabled {
 		sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
 	} else {
 		sarama.Logger = log.New(io.Discard, "[Sarama] ", log.LstdFlags)
 	}
-	glog.Warningf("Applied mutable config %s", mutableCanaryConfig)
+	glog.Warningf("Applied dynamic config %s", dynamicCanaryConfig)
 }

@@ -52,7 +52,7 @@ In addition, certain aspects can be overridden dynamically at runtime from a JSO
 Where this is possible, a field name is provided in the table.
 The configuration file described in more detail the next section.
 
-| Environment variable | Description | Default | Config key |
+| Environment variable | Description | Default | Dynamic Configuration field name |
 |---|---|---|---|
 | `KAFKA_BOOTSTRAP_SERVERS` | Comma separated bootstrap servers of the Kafka cluster to connect to. | `localhost:9092` |  |
 | `KAFKA_BOOTSTRAP_BACKOFF_MAX_ATTEMPTS` | Maximum number of attempts for connecting to the Kafka cluster if it is not ready yet. | `10` |  |
@@ -80,17 +80,15 @@ The configuration file described in more detail the next section.
 | `CONNECTION_CHECK_LATENCY_BUCKETS` | Buckets of the histogram related to the broker's connection latency metric (in ms). | `100,200,400,800,1600` |  |
 | `STATUS_CHECK_INTERVAL_MS` | It defines how often (in ms) the tool updates internal status information (i.e. percentage of consumed messages) to expose outside on the corresponding HTTP endpoint. | `30000` |  |
 | `STATUS_TIME_WINDOW_MS` | It defines the sliding time window size (in ms) in which status information are sampled. | `300000` |  |
-| `MUTABLE_CONFIG_FILE` | Location of an optional external config file that provides configuration at runtime . | empty |  |
-| `MUTABLE_CONFIG_WATCHER_INTERVAL` | Interval that mutable config file is examined for changes in content (in ms)  | `30000` |  |
+| `DYNAMIC_CONFIG_FILE` | Location of an optional external config file that provides configuration at runtime. | empty |  |
+| `DYNAMIC_CONFIG_WATCHER_INTERVAL` | Interval that dynamic config file is examined for changes in content (in ms)  | `30000` |  |
 
 
-## Configuration file
+## Dynamic Configuration file
 
 As mentioned above certain aspects of behaviour can be overridden dynamically at runtime from a JSON configuration file.
-If a config file reference is provided by `MUTABLE_CONFIG_FILE`, that file will be monitored for changes in content and creation/deletion, with any changes being applied dynamically to the Canary's runtime state.
+If a config file reference is provided by `DYNAMIC_CONFIG_FILE`, that file will be monitored for changes in content and creation/deletion, with any changes being applied dynamically to the Canary's runtime state.
 Configuration values by the config file take precedence over configuration values provided by equivalent environment variable.
-
-In a kubernetes environment this file could be provided by a projected configmap.
 
 ```json
 {
@@ -98,6 +96,8 @@ In a kubernetes environment this file could be provided by a projected configmap
   "verbosityLogLevel": 1
 }
 ```
+
+In a kubernetes environment this file could be provided by a projected configmap.
 
 ## Endpoints
 

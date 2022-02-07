@@ -45,8 +45,8 @@ const (
 	ConnectionCheckLatencyBucketsEnvVar = "CONNECTION_CHECK_LATENCY_BUCKETS"
 	StatusCheckIntervalEnvVar           = "STATUS_CHECK_INTERVAL_MS"
 	StatusTimeWindowEnvVar              = "STATUS_TIME_WINDOW_MS"
-	MutableConfigFileEnvVar             = "MUTABLE_CONFIG_FILE"
-	MutableConfigWatcherIntervalEnvVar  = "MUTABLE_CONFIG_WATCHER_INTERVAL"
+	DynamicConfigFileEnvVar             = "DYNAMIC_CONFIG_FILE"
+	DynamicConfigWatcherIntervalEnvVar  = "DYNAMIC_CONFIG_WATCHER_INTERVAL"
 
 	// default values for environment variables
 	BootstrapServersDefault              = "localhost:9092"
@@ -75,18 +75,18 @@ const (
 	ConnectionCheckLatencyBucketsDefault = "100,200,400,800,1600"
 	StatusCheckIntervalDefault           = 30000
 	StatusTimeWindowDefault              = 300000
-	MutableConfigFileDefault             = ""
-	MutableConfigWatcherIntervalDefault  = 30000
+	DynamicConfigFileDefault             = ""
+	DynamicConfigWatcherIntervalDefault  = 30000
 )
 
-type MutableCanaryConfig struct {
+type DynamicCanaryConfig struct {
 	SaramaLogEnabled              *bool `json:"saramaLogEnabled"`
 	VerbosityLogLevel             *int  `json:"verbosityLogLevel"`
 }
 
 // CanaryConfig defines the canary tool configuration
 type CanaryConfig struct {
-	MutableCanaryConfig
+	DynamicCanaryConfig
 	BootstrapServers              []string
 	BootstrapBackoffMaxAttempts   int
 	BootstrapBackoffScale         time.Duration
@@ -99,7 +99,7 @@ type CanaryConfig struct {
 	EndToEndLatencyBuckets        []float64
 	ExpectedClusterSize           int
 	KafkaVersion                  string
-	MutableConfigFile             string
+	DynamicConfigFile             string
 	TLSEnabled                    bool
 	TLSCACert                     string
 	TLSClientCert                 string
@@ -112,20 +112,20 @@ type CanaryConfig struct {
 	ConnectionCheckLatencyBuckets []float64
 	StatusCheckInterval           time.Duration
 	StatusTimeWindow              time.Duration
-	MutableConfigWatcherInterval  time.Duration
+	DynamicConfigWatcherInterval  time.Duration
 }
 
-func NewMutableCanaryConfig() *MutableCanaryConfig {
+func NewDynamicCanaryConfig() *DynamicCanaryConfig {
 	saramaLogEnabled := lookupBoolEnv(SaramaLogEnabledEnvVar, SaramaLogEnabledDefault)
 	verbosityLogLevel := lookupIntEnv(VerbosityLogLevelEnvVar, VerbosityLogLevelDefault)
-	mutableCanaryConfig := MutableCanaryConfig{
+	dynamicCanaryConfig := DynamicCanaryConfig{
 		SaramaLogEnabled:  &saramaLogEnabled,
 		VerbosityLogLevel: &verbosityLogLevel,
 	}
-	return &mutableCanaryConfig
+	return &dynamicCanaryConfig
 }
 
-func (c MutableCanaryConfig) String() string {
+func (c DynamicCanaryConfig) String() string {
 	commaPad := func (str string) string {
 		if len(str) > 0 {
 			str = str + ", "
@@ -146,9 +146,9 @@ func (c MutableCanaryConfig) String() string {
 
 // NewCanaryConfig returns an configuration instance from environment variables
 func NewCanaryConfig() *CanaryConfig {
-	mutableCanaryConfig := NewMutableCanaryConfig()
+	dynamicCanaryConfig := NewDynamicCanaryConfig()
 	config := CanaryConfig{
-		MutableCanaryConfig:           *mutableCanaryConfig,
+		DynamicCanaryConfig:           *dynamicCanaryConfig,
 		BootstrapServers:              strings.Split(lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault), ","),
 		BootstrapBackoffMaxAttempts:   lookupIntEnv(BootstrapBackoffMaxAttemptsEnvVar, BootstrapBackoffMaxAttemptsDefault),
 		BootstrapBackoffScale:         time.Duration(lookupIntEnv(BootstrapBackoffScaleEnvVar, BootstrapBackoffScaleDefault)),
@@ -173,8 +173,8 @@ func NewCanaryConfig() *CanaryConfig {
 		ConnectionCheckLatencyBuckets: latencyBuckets(lookupStringEnv(ConnectionCheckLatencyBucketsEnvVar, ConnectionCheckLatencyBucketsDefault)),
 		StatusCheckInterval:           time.Duration(lookupIntEnv(StatusCheckIntervalEnvVar, StatusCheckIntervalDefault)),
 		StatusTimeWindow:              time.Duration(lookupIntEnv(StatusTimeWindowEnvVar, StatusTimeWindowDefault)),
-		MutableConfigFile:             lookupStringEnv(MutableConfigFileEnvVar, MutableConfigFileDefault),
-		MutableConfigWatcherInterval:  time.Duration(lookupIntEnv(MutableConfigWatcherIntervalEnvVar, MutableConfigWatcherIntervalDefault)),
+		DynamicConfigFile:             lookupStringEnv(DynamicConfigFileEnvVar, DynamicConfigFileDefault),
+		DynamicConfigWatcherInterval:  time.Duration(lookupIntEnv(DynamicConfigWatcherIntervalEnvVar, DynamicConfigWatcherIntervalDefault)),
 	}
 	return &config
 }
@@ -273,10 +273,10 @@ func (c CanaryConfig) String() string {
 		"ClientID:%s, ConsumerGroupID:%s, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d, KafkaVersion:%s,"+
 		"TLSEnabled:%t, TLSCACert:%s, TLSClientCert:%s, TLSClientKey:%s, TLSInsecureSkipVerify:%t,"+
 		"SASLMechanism:%s, SASLUser:%s, SASLPassword:%s, ConnectionCheckInterval:%d ms, ConnectionCheckLatencyBuckets:%v, StatusCheckInterval:%d ms, StatusTimeWindow:%d ms," +
-		"MutableConfigFile: %s, MutableCanaryConfig: %s, MutableConfigWatcherInterval: %d ms}",
+		"DynamicConfigFile: %s, DynamicCanaryConfig: %s, DynamicConfigWatcherInterval: %d ms}",
 		c.BootstrapServers, c.BootstrapBackoffMaxAttempts, c.BootstrapBackoffScale, c.Topic, c.TopicConfig, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
 		c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion,
 		c.TLSEnabled, TLSCACert, TLSClientCert, TLSClientKey, c.TLSInsecureSkipVerify, c.SASLMechanism, SASLUser, SASLPassword,
 		c.ConnectionCheckInterval, c.ConnectionCheckLatencyBuckets, c.StatusCheckInterval, c.StatusTimeWindow,
-		c.MutableConfigFile, c.MutableCanaryConfig, c.MutableConfigWatcherInterval)
+		c.DynamicConfigFile, c.DynamicCanaryConfig, c.DynamicConfigWatcherInterval)
 }

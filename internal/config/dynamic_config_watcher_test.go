@@ -14,25 +14,25 @@ func TestWatcherUsesExistingFile(t *testing.T) {
 
 	configFile := createTempConfigFile(t)
 
-	config := createMutableConfig(99, false)
+	config := createDynamicConfig(99, false)
 
 	writeConfigFile(t, configFile, config)
 
 	wgApply := &sync.WaitGroup{}
 	wgApply.Add(1)
-	var applied *MutableCanaryConfig
+	var applied *DynamicCanaryConfig
 	defaulted := 0
 
-	applyFunc := func(config *MutableCanaryConfig) {
+	applyFunc := func(config *DynamicCanaryConfig) {
 		applied = config
 		wgApply.Done()
 	}
-	defaultFunc := func() *MutableCanaryConfig {
+	defaultFunc := func() *DynamicCanaryConfig {
 		defaulted++
 		return nil
 	}
 
-	watcher, err := NewMutableConfigWatcher(createCanaryConfig(configFile), applyFunc, defaultFunc)
+	watcher, err := NewDynamicConfigWatcher(createCanaryConfig(configFile), applyFunc, defaultFunc)
 	if err != nil {
 		t.Errorf("failed to create watcher: %v", err)
 	}
@@ -52,15 +52,15 @@ func TestWatcherUsesExistingFile(t *testing.T) {
 func TestWatcherSessConfigFileDelete(t *testing.T) {
 	configFile := createTempConfigFile(t)
 
-	defaultConfig := createMutableConfig(88, true)
-	writeConfigFile(t, configFile, createMutableConfig(99, false))
+	defaultConfig := createDynamicConfig(88, true)
+	writeConfigFile(t, configFile, createDynamicConfig(99, false))
 
 	once := &sync.Once{}
 	wgApply := &sync.WaitGroup{}
 	wgApply.Add(2)
-	var applied *MutableCanaryConfig
+	var applied *DynamicCanaryConfig
 
-	applyFunc := func(config *MutableCanaryConfig) {
+	applyFunc := func(config *DynamicCanaryConfig) {
 		once.Do(func() {
 			err := os.Remove(configFile)
 			if err != nil {
@@ -70,11 +70,11 @@ func TestWatcherSessConfigFileDelete(t *testing.T) {
 		applied = config
 		wgApply.Done()
 	}
-	defaultFunc := func() *MutableCanaryConfig {
+	defaultFunc := func() *DynamicCanaryConfig {
 		return defaultConfig
 	}
 
-	watcher, err := NewMutableConfigWatcher(createCanaryConfig(configFile), applyFunc, defaultFunc)
+	watcher, err := NewDynamicConfigWatcher(createCanaryConfig(configFile), applyFunc, defaultFunc)
 	if err != nil {
 		t.Errorf("failed to create watcher: %v", err)
 	}
@@ -89,26 +89,26 @@ func TestWatcherSessConfigFileDelete(t *testing.T) {
 func TestWatcherSeesConfigFileChange(t *testing.T) {
 	configFile := createTempConfigFile(t)
 
-	updatedConfig := createMutableConfig(88, true)
-	writeConfigFile(t, configFile, createMutableConfig(99, false))
+	updatedConfig := createDynamicConfig(88, true)
+	writeConfigFile(t, configFile, createDynamicConfig(99, false))
 
 	once := &sync.Once{}
 	wgApply := &sync.WaitGroup{}
 	wgApply.Add(2)
-	var applied *MutableCanaryConfig
+	var applied *DynamicCanaryConfig
 
-	applyFunc := func(config *MutableCanaryConfig) {
+	applyFunc := func(config *DynamicCanaryConfig) {
 		once.Do(func() {
 			writeConfigFile(t, configFile, updatedConfig)
 		})
 		applied = config
 		wgApply.Done()
 	}
-	defaultFunc := func() *MutableCanaryConfig {
-		return NewMutableCanaryConfig()
+	defaultFunc := func() *DynamicCanaryConfig {
+		return NewDynamicCanaryConfig()
 	}
 
-	watcher, err := NewMutableConfigWatcher(createCanaryConfig(configFile), applyFunc, defaultFunc)
+	watcher, err := NewDynamicConfigWatcher(createCanaryConfig(configFile), applyFunc, defaultFunc)
 	if err != nil {
 		t.Errorf("failed to create watcher: %v", err)
 	}
@@ -125,7 +125,7 @@ func createTempConfigFile(t *testing.T) string {
 	return configFile
 }
 
-func writeConfigFile(t *testing.T, configFile string, config *MutableCanaryConfig) {
+func writeConfigFile(t *testing.T, configFile string, config *DynamicCanaryConfig) {
 	marshal, err := json.Marshal(config)
 	if err != nil {
 		t.Errorf("failed to marshal config : %v", err)
@@ -152,14 +152,14 @@ func waitTimeout(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
 
 func createCanaryConfig(configFile string) *CanaryConfig {
 	canaryConfig := &CanaryConfig{
-		MutableConfigFile:            configFile,
-		MutableConfigWatcherInterval: 50,
+		DynamicConfigFile:            configFile,
+		DynamicConfigWatcherInterval: 50,
 	}
 	return canaryConfig
 }
 
-func createMutableConfig(logLevel int, saramaLogEnabled bool) *MutableCanaryConfig {
-	config := NewMutableCanaryConfig()
+func createDynamicConfig(logLevel int, saramaLogEnabled bool) *DynamicCanaryConfig {
+	config := NewDynamicCanaryConfig()
 	config.VerbosityLogLevel = &logLevel
 	config.SaramaLogEnabled = &saramaLogEnabled
 	return config
