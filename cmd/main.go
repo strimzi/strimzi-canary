@@ -6,6 +6,7 @@ package main
 
 import (
 	"flag"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -42,10 +43,15 @@ func main() {
 	if err := flag.Set("logtostderr", "true"); err != nil {
 		glog.Errorf("Error on setting logtostderr to true")
 	}
-	flag.Set("v", strconv.Itoa(canaryConfig.VerbosityLogLevel))
-	flag.Parse()
+
+	applyDynamicConfig(&canaryConfig.DynamicCanaryConfig)
 
 	glog.Infof("Starting Strimzi canary tool [%s] with config: %+v", version, canaryConfig)
+
+	dynamicConfigWatcher, err := config.NewDynamicConfigWatcher(canaryConfig, applyDynamicConfig, config.NewDynamicCanaryConfig)
+	if err != nil {
+		glog.Fatalf("Failed to create dynamic config watcher: %v", err)
+	}
 
 	statusService := services.NewStatusServiceService(canaryConfig)
 	httpServer := servers.NewHttpServer(statusService)
@@ -71,6 +77,7 @@ func main() {
 	glog.Infof("Got signal: %v", sig)
 	canaryManager.Stop()
 	httpServer.Stop()
+	dynamicConfigWatcher.Close()
 
 	glog.Infof("Strimzi canary stopped")
 }
@@ -90,9 +97,6 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 	config.Producer.Retry.Max = 0
 	config.Consumer.Return.Errors = true
 
-	if canaryConfig.SaramaLogEnabled {
-		sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
-	}
 
 	if canaryConfig.TLSEnabled {
 		config.Net.TLS.Enable = true
@@ -122,4 +126,18 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 		glog.Warningf("Error creating new Sarama client, retrying in %d ms: %v", delay.Milliseconds(), clientErr)
 		time.Sleep(delay)
 	}
+}
+
+func applyDynamicConfig(dynamicCanaryConfig *config.DynamicCanaryConfig) {
+	if dynamicCanaryConfig.VerbosityLogLevel != nil {
+		flag.Set("v", strconv.Itoa(*dynamicCanaryConfig.VerbosityLogLevel))
+		flag.Parse()
+	}
+
+	if dynamicCanaryConfig.SaramaLogEnabled != nil && *dynamicCanaryConfig.SaramaLogEnabled {
+		sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
+	} else {
+		sarama.Logger = log.New(io.Discard, "[Sarama] ", log.LstdFlags)
+	}
+	glog.Warningf("Applied dynamic config %s", dynamicCanaryConfig)
 }
