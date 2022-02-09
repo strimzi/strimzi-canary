@@ -64,10 +64,9 @@ func NewDynamicConfigWatcher(canaryConfig *CanaryConfig, applyFunc func(config *
 	return dynamicConfigWatcher, nil
 }
 
-func (c DynamicConfigWatcher) Close()  {
+func (c *DynamicConfigWatcher) Close()  {
 	if c.ticker != nil {
 		c.ticker.Stop()
-		c.ticker = nil
 	}
 }
 
