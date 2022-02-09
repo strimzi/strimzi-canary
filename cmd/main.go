@@ -35,6 +35,7 @@ var (
 	}, nil)
 )
 
+var saramaLogger = log.New(io.Discard, "[Sarama] ", log.LstdFlags)
 func main() {
 	// get canary configuration
 	canaryConfig := config.NewCanaryConfig()
@@ -43,6 +44,7 @@ func main() {
 	if err := flag.Set("logtostderr", "true"); err != nil {
 		glog.Errorf("Error on setting logtostderr to true")
 	}
+	sarama.Logger = saramaLogger
 
 	applyDynamicConfig(&canaryConfig.DynamicCanaryConfig)
 
@@ -135,9 +137,9 @@ func applyDynamicConfig(dynamicCanaryConfig *config.DynamicCanaryConfig) {
 	}
 
 	if dynamicCanaryConfig.SaramaLogEnabled != nil && *dynamicCanaryConfig.SaramaLogEnabled {
-		sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
+		saramaLogger.SetOutput(os.Stdout)
 	} else {
-		sarama.Logger = log.New(io.Discard, "[Sarama] ", log.LstdFlags)
+		saramaLogger.SetOutput(io.Discard)
 	}
 	glog.Warningf("Applied dynamic config %s", dynamicCanaryConfig)
 }
