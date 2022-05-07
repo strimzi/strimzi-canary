@@ -36,6 +36,8 @@ type TopicService struct {
 }
 
 var (
+	cleanupPolicy string = "delete"
+
 	topicCreationFailed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name:      "topic_creation_failed_total",
 		Namespace: "strimzi_canary",
@@ -246,6 +248,8 @@ func (ts *TopicService) createTopic(brokers []*sarama.Broker) (map[int32][]int32
 		topicConfig[index] = &p
 	}
 	topicConfig["min.insync.replicas"] = &v
+	// override cleanup policy because it needs to be "delete" (canary doesn't use keys on messages)
+	topicConfig["cleanup.policy"] = &cleanupPolicy
 
 	topicDetail := sarama.TopicDetail{
 		NumPartitions:     -1,
