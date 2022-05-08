@@ -2,8 +2,10 @@
 
 ## 0.3.0
 
+* Forced cleanup.policy to "delete" for the canary topic (#173)
+* Allow to change canary logging verbosity and enable/disable Sarama logger at runtime (#166)
 * Added Prometheus support via `PodMonitor` and sample Grafana dashboard for exposed metrics
-* Treat ETIMEDOUT (TCP keep-alive failure) as a disconnection condition too
+* Treat ETIMEDOUT (TCP keep-alive failure) as a disconnection condition too (#159)
 
 ## 0.2.0
 
