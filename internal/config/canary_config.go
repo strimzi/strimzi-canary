@@ -60,7 +60,7 @@ const (
 	ProducerLatencyBucketsDefault        = "100,200,400,800,1600"
 	EndToEndLatencyBucketsDefault        = "100,200,400,800,1600"
 	ExpectedClusterSizeDefault           = -1 // "dynamic" reassignment is enabled
-	KafkaVersionDefault                  = "2.8.0"
+	KafkaVersionDefault                  = "3.1.0"
 	SaramaLogEnabledDefault              = false
 	VerbosityLogLevelDefault             = 0 // default 0 = INFO, 1 = DEBUG, 2 = TRACE
 	TLSEnabledDefault                    = false
@@ -80,8 +80,8 @@ const (
 )
 
 type DynamicCanaryConfig struct {
-	SaramaLogEnabled              *bool `json:"saramaLogEnabled"`
-	VerbosityLogLevel             *int  `json:"verbosityLogLevel"`
+	SaramaLogEnabled  *bool `json:"saramaLogEnabled"`
+	VerbosityLogLevel *int  `json:"verbosityLogLevel"`
 }
 
 // CanaryConfig defines the canary tool configuration
@@ -126,7 +126,7 @@ func NewDynamicCanaryConfig() *DynamicCanaryConfig {
 }
 
 func (c DynamicCanaryConfig) String() string {
-	commaPad := func (str string) string {
+	commaPad := func(str string) string {
 		if len(str) > 0 {
 			str = str + ", "
 		}
@@ -272,7 +272,7 @@ func (c CanaryConfig) String() string {
 	return fmt.Sprintf("{BootstrapServers:%s, BootstrapBackoffMaxAttempts:%d, BootstrapBackoffScale:%d, Topic:%s, TopicConfig:%v, ReconcileInterval:%d ms, "+
 		"ClientID:%s, ConsumerGroupID:%s, ProducerLatencyBuckets:%v, EndToEndLatencyBuckets:%v, ExpectedClusterSize:%d, KafkaVersion:%s,"+
 		"TLSEnabled:%t, TLSCACert:%s, TLSClientCert:%s, TLSClientKey:%s, TLSInsecureSkipVerify:%t,"+
-		"SASLMechanism:%s, SASLUser:%s, SASLPassword:%s, ConnectionCheckInterval:%d ms, ConnectionCheckLatencyBuckets:%v, StatusCheckInterval:%d ms, StatusTimeWindow:%d ms," +
+		"SASLMechanism:%s, SASLUser:%s, SASLPassword:%s, ConnectionCheckInterval:%d ms, ConnectionCheckLatencyBuckets:%v, StatusCheckInterval:%d ms, StatusTimeWindow:%d ms,"+
 		"DynamicConfigFile: %s, DynamicCanaryConfig: %s, DynamicConfigWatcherInterval: %d ms}",
 		c.BootstrapServers, c.BootstrapBackoffMaxAttempts, c.BootstrapBackoffScale, c.Topic, c.TopicConfig, c.ReconcileInterval, c.ClientID, c.ConsumerGroupID,
 		c.ProducerLatencyBuckets, c.EndToEndLatencyBuckets, c.ExpectedClusterSize, c.KafkaVersion,

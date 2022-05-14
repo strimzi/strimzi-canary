@@ -7,6 +7,7 @@
 * Added Prometheus support via `PodMonitor` and sample Grafana dashboard for exposed metrics
 * Treat ETIMEDOUT (TCP keep-alive failure) as a disconnection condition too (#159)
 * Updated dependency to Sarama 1.33.0 (#176)
+* Updated default Kafka version used by Sarama library to 3.1.0
 
 ## 0.2.0
 
