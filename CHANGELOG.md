@@ -6,6 +6,7 @@
 * Allow to change canary logging verbosity and enable/disable Sarama logger at runtime (#166)
 * Added Prometheus support via `PodMonitor` and sample Grafana dashboard for exposed metrics
 * Treat ETIMEDOUT (TCP keep-alive failure) as a disconnection condition too (#159)
+* Updated dependency to Sarama 1.33.0 (#176)
 
 ## 0.2.0
 
