@@ -36,6 +36,7 @@ var (
 )
 
 var saramaLogger = log.New(io.Discard, "[Sarama] ", log.LstdFlags)
+
 func main() {
 	// get canary configuration
 	canaryConfig := config.NewCanaryConfig()
@@ -98,7 +99,9 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 	config.Producer.RequiredAcks = sarama.WaitForAll
 	config.Producer.Retry.Max = 0
 	config.Consumer.Return.Errors = true
-
+	// this Sarama fix https://github.com/Shopify/sarama/pull/2227 increases the canary e2e latency
+	// it shows a potential bug in Sarama. We revert the value back here while waiting for a Sarama fix
+	config.Consumer.MaxWaitTime = 250 * time.Millisecond
 
 	if canaryConfig.TLSEnabled {
 		config.Net.TLS.Enable = true
