@@ -126,7 +126,7 @@ The `Consuming` field provides information about the `Percentage` of messages co
 }
 ```
 
-If there are not enough messages produced and consumed over the configured time window, the `/status` endpoint will report a `Percentage: -1` and the canary will log `Error processing consumed records percentage: No data samples available in the time window ring`.
+If the time window has not ended, the `/status` endpoint cannot report a percentage of correctly consumed messages. Instead, it returns `Percentage: -1`. The canary also logs `Error processing consumed records percentage: No data samples available in the time window ring`.  In this case, you wait until the time window has ended for the sampling to complete. 
 
 ## Metrics
 
