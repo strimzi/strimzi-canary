@@ -126,6 +126,8 @@ The `Consuming` field provides information about the `Percentage` of messages co
 }
 ```
 
+If the time window has not ended, the `/status` endpoint cannot report a percentage of correctly consumed messages. Instead, it returns `Percentage: -1`. The canary also logs `Error processing consumed records percentage: No data samples available in the time window ring`.  In this case, you wait until the time window has ended for the sampling to complete. 
+
 ## Metrics
 
 In order to check how your Apache Kafka cluster is behaving, the Canary provides the following metrics on the corresponding HTTP endpoint.
