@@ -8,7 +8,7 @@
 * Treat ETIMEDOUT (TCP keep-alive failure) as a disconnection condition too (#159)
 * Updated dependency to Sarama 1.34.0 (#180)
 * Updated default Kafka version used by Sarama library to 3.1.0
-* Revert back the consumer fetch max wait time, due to a potential bug in Sarama (#184)
+* Use 250ms as consumer fetch max wait timeout with Sarama 1.34.0 (#184)
 
 ## 0.2.0
 
