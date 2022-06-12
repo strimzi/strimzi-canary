@@ -219,10 +219,12 @@ func (ts *TopicService) reconcileTopic() (TopicReconcileResult, error) {
 func (ts *TopicService) Close() {
 	glog.Infof("Closing topic service")
 
-	if err := ts.admin.Close(); err != nil {
-		glog.Fatalf("Error closing the Sarama cluster admin: %v", err)
+	if ts.admin != nil {
+		if err := ts.admin.Close(); err != nil {
+			glog.Fatalf("Error closing the Sarama cluster admin: %v", err)
+		}
+		ts.admin = nil
 	}
-	ts.admin = nil
 	glog.Infof("Topic service closed")
 }
 
@@ -312,14 +314,55 @@ func (ts *TopicService) requestedAssignments(currentPartitions int, brokers []*s
 		return brokers[i].ID() < brokers[j].ID()
 	})
 
-	assignments := make(map[int32][]int32, int(partitions))
+	rackMap := make(map[string][]*sarama.Broker)
+	var rackNames []string
+	brokersWithRack := 0
+	for _, broker := range brokers {
+		if broker.Rack() != "" {
+			brokersWithRack++
+			if _, ok := rackMap[broker.Rack()]; !ok {
+				rackMap[broker.Rack()] = make([]*sarama.Broker, 0)
+				rackNames = append(rackNames, broker.Rack())
+			}
+			rackMap[broker.Rack()] = append(rackMap[broker.Rack()], broker)
+		}
+	}
+
+	if len(brokers) != brokersWithRack {
+		if brokersWithRack > 0 {
+			glog.Warningf("Not *all* brokers have rack assignments (%d/%d), topic %s will be created without rack awareness", brokersWithRack, len(brokers), ts.canaryConfig.Topic)
+		}
+	} else {
+		index := 0
+
+		for ;; {
+			again := false
+
+			for _, rackName := range rackNames {
+				brokerList := rackMap[rackName]
+				if len(brokerList) > 0 {
+					var head *sarama.Broker
+					head, rackMap[rackName] = brokerList[0], brokerList[1:]
+					brokers[index] = head
+					index++
+					again = true
+				}
+			}
+
+			if !again {
+				break
+			}
+		}
+	}
+
+	assignments := make(map[int32][]int32, partitions)
 	for p := 0; p < int(partitions); p++ {
-		assignments[int32(p)] = make([]int32, int(replicationFactor))
+		assignments[int32(p)] = make([]int32, replicationFactor)
 		k := p
-		for r := 0; r < int(replicationFactor); r++ {
+		for r := 0; r < replicationFactor; r++ {
 			// get brokers ID for assignment from the brokers list and not using
 			// just a monotonic increasing index because there could be "hole" (a broker down)
-			assignments[int32(p)][r] = brokers[int32(k%int(brokersNumber))].ID()
+			assignments[int32(p)][r] = brokers[int32(k%brokersNumber)].ID()
 			k++
 		}
 	}
@@ -338,7 +381,7 @@ func (ts *TopicService) currentAssignments(topicMetadata *sarama.TopicMetadata) 
 
 // Alter the replica assignment for the partitions
 //
-// After the request for the replica assignement, it run a loop for checking if the reassignment is still ongoing
+// After the request for the replica assignment, it run a loop for checking if the reassignment is still ongoing
 // It returns when the reassignment is done or there is an error
 func (ts *TopicService) alterAssignments(assignments [][]int32) error {
 	if err := ts.admin.AlterPartitionReassignments(ts.canaryConfig.Topic, assignments); err != nil {
