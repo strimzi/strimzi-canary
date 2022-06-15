@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.4.0
+
+* Fixed replicas assignment taking rack configuration into account (#190)
+
 ## 0.3.0
 
 * Forced cleanup.policy to "delete" for the canary topic (#173)
