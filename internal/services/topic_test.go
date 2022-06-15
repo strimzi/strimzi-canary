@@ -92,7 +92,7 @@ func TestRequestedAssignments(t *testing.T) {
 					}
 
 					if !found {
-						t.Errorf("broker %d is leader more than one partition (%d)", brokerId, count)
+						t.Errorf("broker %d is leader for more than one partition (%d)", brokerId, count)
 					}
 				}
 			}
