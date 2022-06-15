@@ -314,6 +314,18 @@ func (ts *TopicService) requestedAssignments(currentPartitions int, brokers []*s
 		return brokers[i].ID() < brokers[j].ID()
 	})
 
+	// now adjust the broker ordering to produce a rack alternated list.
+	// if the brokers have no rack information (or only some brokers have it) this next part has no effect.
+	//
+	// for example:
+	// assuming: 0 -> "rack1", 1 -> "rack3", 2 -> "rack3", 3 -> "rack2", 4 -> "rack2", 5 -> "rack1"
+	// rackMap contains:
+	//  rack1: {0, 5}
+	//  rack2: {3, 4}
+	//  rack3: {1, 2}
+	// rack alternated broker list:
+	// 0, 3, 1, 5, 4, 2
+
 	rackMap := make(map[string][]*sarama.Broker)
 	var rackNames []string
 	brokersWithRack := 0
