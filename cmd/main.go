@@ -63,15 +63,24 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
-	client, err := newClient(canaryConfig)
+	saramaConfig, err := createSaramaConfig(canaryConfig)
 	if err != nil {
-		glog.Fatalf("Error creating new Sarama client: %v", err)
+		glog.Fatalf("Error creating Sarama config: %v", err)
 	}
 
-	topicService := services.NewTopicService(canaryConfig, client.Config())
-	producerService := services.NewProducerService(canaryConfig, client)
-	consumerService := services.NewConsumerService(canaryConfig, client)
-	connectionService := services.NewConnectionService(canaryConfig, client.Config())
+	producerClient, err := newClientWithRetry(canaryConfig, saramaConfig)
+	if err != nil {
+		glog.Fatalf("Error creating producer Sarama client: %v", err)
+	}
+	consumerClient, err := newClientWithRetry(canaryConfig, saramaConfig)
+	if err != nil {
+		glog.Fatalf("Error creating consumer Sarama client: %v", err)
+	}
+
+	topicService := services.NewTopicService(canaryConfig, saramaConfig)
+	producerService := services.NewProducerService(canaryConfig, producerClient)
+	consumerService := services.NewConsumerService(canaryConfig, consumerClient)
+	connectionService := services.NewConnectionService(canaryConfig, saramaConfig)
 
 	canaryManager := workers.NewCanaryManager(canaryConfig, topicService, producerService, consumerService, connectionService, statusService)
 	canaryManager.Start()
@@ -81,11 +90,13 @@ func main() {
 	canaryManager.Stop()
 	httpServer.Stop()
 	dynamicConfigWatcher.Close()
+	_ = producerClient.Close()
+	_ = consumerClient.Close()
 
 	glog.Infof("Strimzi canary stopped")
 }
 
-func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
+func createSaramaConfig(canaryConfig *config.CanaryConfig) (*sarama.Config, error) {
 	config := sarama.NewConfig()
 	kafkaVersion, err := sarama.ParseKafkaVersion(canaryConfig.KafkaVersion)
 	if err != nil {
@@ -99,9 +110,6 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 	config.Producer.RequiredAcks = sarama.WaitForAll
 	config.Producer.Retry.Max = 0
 	config.Consumer.Return.Errors = true
-	// this Sarama fix https://github.com/Shopify/sarama/pull/2227 increases the canary e2e latency
-	// it shows a potential bug in Sarama. We revert the value back here while waiting for a Sarama fix
-	config.Consumer.MaxWaitTime = 250 * time.Millisecond
 
 	if canaryConfig.TLSEnabled {
 		config.Net.TLS.Enable = true
@@ -116,6 +124,10 @@ func newClient(canaryConfig *config.CanaryConfig) (sarama.Client, error) {
 		}
 	}
 
+	return config, nil
+}
+
+func newClientWithRetry(canaryConfig *config.CanaryConfig, config *sarama.Config) (sarama.Client, error) {
 	backoff := services.NewBackoff(canaryConfig.BootstrapBackoffMaxAttempts, canaryConfig.BootstrapBackoffScale*time.Millisecond, services.MaxDefault)
 	for {
 		client, clientErr := sarama.NewClient(canaryConfig.BootstrapServers, config)
