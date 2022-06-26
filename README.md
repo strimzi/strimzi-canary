@@ -62,8 +62,8 @@ The configuration file described in more detail the next section.
 | `RECONCILE_INTERVAL_MS` | It defines how often the tool has to send and receive messages (in ms). | `30000` |  |
 | `CLIENT_ID` | The client id used for configuring producer and consumer. | `strimzi-canary-client` |  |
 | `CONSUMER_GROUP_ID` | Group id for the consumer group joined by the canary consumer. | `strimzi-canary-group` |  |
-| `PRODUCER_LATENCY_BUCKETS` | Buckets of the histogram related to the producer latency metric (in ms). | `100,200,400,800,1600` |  |
-| `ENDTOEND_LATENCY_BUCKETS` | Buckets of the histogram related to the end to end latency metric between producer and consumer (in ms). | `100,200,400,800,1600` |  |
+| `PRODUCER_LATENCY_BUCKETS` | Buckets of the histogram related to the producer latency metric (in ms). | `2,5,10,20,50,100,200,400` |  |
+| `ENDTOEND_LATENCY_BUCKETS` | Buckets of the histogram related to the end to end latency metric between producer and consumer (in ms). | `5,10,20,50,100,200,400,800` |  |
 | `EXPECTED_CLUSTER_SIZE` | Expected number of brokers in the Kafka cluster where the canary connects to. This parameter avoids that the tool runs more partitions reassignment of the topic while the Kafka cluster is starting up and the brokers are coming one by one. `-1` means "dynamic" reassignment as described above. When greater than 0, the canary waits for the Kafka cluster having the expected number of brokers running before creating the topic and assigning the partitions | `-1` |  |
 | `KAFKA_VERSION` | Version of the Kafka cluster | `3.1.0` |  |
 | `SARAMA_LOG_ENABLED` | Enables the Sarama client logging. | `false` | `saramaLogEnabled` |
