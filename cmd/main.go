@@ -35,7 +35,7 @@ var (
 	}, nil)
 )
 
-var saramaLogger = log.New(io.Discard, "[Sarama] ", log.LstdFlags)
+var saramaLogger = log.New(io.Discard, "[Sarama] ", log.Ldate | log.Lmicroseconds)
 
 func main() {
 	// get canary configuration
