@@ -4,6 +4,7 @@
 
 * Fixed replicas assignment taking rack configuration into account (#190)
 * Use separate sarama clients for producer/consumer in order to reliably measure message latency (#188)
+* Adjust default histogram bucket sizes (#194)
 
 ## 0.3.0
 
