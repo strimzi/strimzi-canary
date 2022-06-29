@@ -3,6 +3,7 @@
 ## 0.4.0
 
 * Fixed replicas assignment taking rack configuration into account (#190)
+* Use separate sarama clients for producer/consumer in order to reliably measure message latency (#188)
 
 ## 0.3.0
 
