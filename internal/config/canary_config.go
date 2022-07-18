@@ -47,7 +47,8 @@ const (
 	StatusTimeWindowEnvVar              = "STATUS_TIME_WINDOW_MS"
 	DynamicConfigFileEnvVar             = "DYNAMIC_CONFIG_FILE"
 	DynamicConfigWatcherIntervalEnvVar  = "DYNAMIC_CONFIG_WATCHER_INTERVAL"
-
+	//TODO: This will be removed when Support the OTEL_TRACES_EXPORTER env var is available in the SDK see: https://github.com/open-telemetry/opentelemetry-go/issues/2310
+	ExporterTypeTracing = "EXPORTER_TYPE_TRACING"
 	// default values for environment variables
 	BootstrapServersDefault              = "localhost:9092"
 	BootstrapBackoffMaxAttemptsDefault   = 10
@@ -77,6 +78,7 @@ const (
 	StatusTimeWindowDefault              = 300000
 	DynamicConfigFileDefault             = ""
 	DynamicConfigWatcherIntervalDefault  = 30000
+	ExporterTypeTracingDefault           = "" //if empty no tracing for now, possible values : "otlp" or "jaeger"
 )
 
 type DynamicCanaryConfig struct {
@@ -113,11 +115,13 @@ type CanaryConfig struct {
 	StatusCheckInterval           time.Duration
 	StatusTimeWindow              time.Duration
 	DynamicConfigWatcherInterval  time.Duration
+	ExporterTypeTracing           string
 }
 
 func NewDynamicCanaryConfig() *DynamicCanaryConfig {
 	saramaLogEnabled := lookupBoolEnv(SaramaLogEnabledEnvVar, SaramaLogEnabledDefault)
 	verbosityLogLevel := lookupIntEnv(VerbosityLogLevelEnvVar, VerbosityLogLevelDefault)
+
 	dynamicCanaryConfig := DynamicCanaryConfig{
 		SaramaLogEnabled:  &saramaLogEnabled,
 		VerbosityLogLevel: &verbosityLogLevel,
@@ -147,6 +151,7 @@ func (c DynamicCanaryConfig) String() string {
 // NewCanaryConfig returns an configuration instance from environment variables
 func NewCanaryConfig() *CanaryConfig {
 	dynamicCanaryConfig := NewDynamicCanaryConfig()
+
 	config := CanaryConfig{
 		DynamicCanaryConfig:           *dynamicCanaryConfig,
 		BootstrapServers:              strings.Split(lookupStringEnv(BootstrapServersEnvVar, BootstrapServersDefault), ","),
@@ -175,6 +180,7 @@ func NewCanaryConfig() *CanaryConfig {
 		StatusTimeWindow:              time.Duration(lookupIntEnv(StatusTimeWindowEnvVar, StatusTimeWindowDefault)),
 		DynamicConfigFile:             lookupStringEnv(DynamicConfigFileEnvVar, DynamicConfigFileDefault),
 		DynamicConfigWatcherInterval:  time.Duration(lookupIntEnv(DynamicConfigWatcherIntervalEnvVar, DynamicConfigWatcherIntervalDefault)),
+		ExporterTypeTracing:           exporterTypeTracing(),
 	}
 	return &config
 }
@@ -279,4 +285,11 @@ func (c CanaryConfig) String() string {
 		c.TLSEnabled, TLSCACert, TLSClientCert, TLSClientKey, c.TLSInsecureSkipVerify, c.SASLMechanism, SASLUser, SASLPassword,
 		c.ConnectionCheckInterval, c.ConnectionCheckLatencyBuckets, c.StatusCheckInterval, c.StatusTimeWindow,
 		c.DynamicConfigFile, c.DynamicCanaryConfig, c.DynamicConfigWatcherInterval)
+}
+func exporterTypeTracing() string {
+	exporterType := lookupStringEnv(ExporterTypeTracing, ExporterTypeTracingDefault)
+	if exporterType != "jaeger" && exporterType != "otlp" && exporterType != "" {
+		panic(fmt.Errorf("%s env variable possible values are : '' or 'jaeger' or 'otlp'", ExporterTypeTracing))
+	}
+	return exporterType
 }

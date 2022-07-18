@@ -5,7 +5,9 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -14,10 +16,18 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/Shopify/sarama"
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
 	"github.com/strimzi/strimzi-canary/internal/config"
 	"github.com/strimzi/strimzi-canary/internal/security"
 	"github.com/strimzi/strimzi-canary/internal/servers"
@@ -34,10 +44,47 @@ var (
 		Help:      "Total number of errors while creating Sarama client",
 	}, nil)
 )
-
 var saramaLogger = log.New(io.Discard, "[Sarama] ", log.Ldate | log.Lmicroseconds)
+func initTracerProvider(exporterType string) *sdktrace.TracerProvider {
+	if exporterType == "" {
+		tp := trace.NewNoopTracerProvider()
+		otel.SetTracerProvider(tp)
+		return nil
+	}
+	resources, _ := resource.New(context.Background(),
+		resource.WithFromEnv(), // pull attributes from OTEL_RESOURCE_ATTRIBUTES and OTEL_SERVICE_NAME environment variables
+		resource.WithProcess(), // This option configures a set of Detectors that discover process information
+	)
+
+	exporter := exporterTracing(exporterType)
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithResource(resources),
+		sdktrace.WithBatcher(exporter),
+	)
+	otel.SetTracerProvider(tp)
+	return tp
+
+}
+
+func exporterTracing(exporterType string) sdktrace.SpanExporter {
+	//Could not use OTEL_TRACES_EXPORTER https://github.com/open-telemetry/opentelemetry-go/issues/2310
+	var exporter sdktrace.SpanExporter
+	var err error
+	//If the env variables needed are defined we set the exporter to Jaeger else it is an opentelemetry exporter
+	if exporterType == "jaeger" {
+		exporter, err = jaeger.New(jaeger.WithAgentEndpoint()) //from env variable https://github.com/open-telemetry/opentelemetry-go/tree/main/exporters/jaeger#environment-variables
+	} else if exporterType == "otlp" {
+		exporter, err = otlptracegrpc.New(context.Background()) //from env variable https://github.com/open-telemetry/opentelemetry-go/blob/main/exporters/otlp/otlptrace/README.md
+	}
+	if err != nil {
+		panic(fmt.Errorf("error creating tracing exporter %s", err))
+	}
+	return exporter
+}
+
 
 func main() {
+
 	// get canary configuration
 	canaryConfig := config.NewCanaryConfig()
 
@@ -51,6 +98,14 @@ func main() {
 
 	glog.Infof("Starting Strimzi canary tool [%s] with config: %+v", version, canaryConfig)
 
+	tp := initTracerProvider(canaryConfig.ExporterTypeTracing)
+	defer func() {
+		if tp != nil {
+			if err := tp.Shutdown(context.Background()); err != nil {
+				log.Printf("Error shutting down tracer provider: %v", err)
+			}
+		}
+	}()
 	dynamicConfigWatcher, err := config.NewDynamicConfigWatcher(canaryConfig, applyDynamicConfig, config.NewDynamicCanaryConfig)
 	if err != nil {
 		glog.Fatalf("Failed to create dynamic config watcher: %v", err)
@@ -156,5 +211,6 @@ func applyDynamicConfig(dynamicCanaryConfig *config.DynamicCanaryConfig) {
 	} else {
 		saramaLogger.SetOutput(io.Discard)
 	}
+
 	glog.Warningf("Applied dynamic config %s", dynamicCanaryConfig)
 }

@@ -82,6 +82,7 @@ The configuration file described in more detail the next section.
 | `STATUS_TIME_WINDOW_MS` | It defines the sliding time window size (in ms) in which status information are sampled. | `300000` |  |
 | `DYNAMIC_CONFIG_FILE` | Location of an optional external config file that provides configuration at runtime. | empty |  |
 | `DYNAMIC_CONFIG_WATCHER_INTERVAL` | Interval that dynamic config file is examined for changes in content (in ms)  | `30000` |  |
+| `EXPORTER_TYPE_TRACING` | Tracing Exporter use. Empty value disable tracing, other possible values are `jaeger` or `otlp`  | `` |  |
 
 
 ## Dynamic Configuration file

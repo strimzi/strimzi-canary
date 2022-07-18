@@ -7,12 +7,17 @@
 package services
 
 import (
+	"context"
 	"strconv"
+
+	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
+	"go.opentelemetry.io/otel"
 
 	"github.com/Shopify/sarama"
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
 	"github.com/strimzi/strimzi-canary/internal/config"
 	"github.com/strimzi/strimzi-canary/internal/util"
 )
@@ -53,6 +58,7 @@ type ProducerService struct {
 
 // NewProducerService returns an instance of ProductService
 func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ProducerService {
+
 	recordsProducedLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:      "records_produced_latency",
 		Namespace: "strimzi_canary",
@@ -64,6 +70,7 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 	if err != nil {
 		glog.Fatalf("Error creating the Sarama sync producer: %v", err)
 	}
+	producer = otelsarama.WrapSyncProducer(client.Config(), producer)
 	ps := ProducerService{
 		canaryConfig: canaryConfig,
 		client:       client,
@@ -83,6 +90,7 @@ func (ps *ProducerService) Send(partitionsAssignments map[int32][]int32) {
 		cm := ps.newCanaryMessage()
 		msg.Value = sarama.StringEncoder(cm.Json())
 		msg.Partition = int32(i)
+		otel.GetTextMapPropagator().Inject(context.Background(), otelsarama.NewProducerMessageCarrier(msg))
 		glog.V(1).Infof("Sending message: value=%s on partition=%d", msg.Value, msg.Partition)
 		partition, offset, err := ps.producer.SendMessage(msg)
 		timestamp := util.NowInMilliseconds() // timestamp in milliseconds
