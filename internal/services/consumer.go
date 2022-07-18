@@ -11,10 +11,16 @@ import (
 	"strconv"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
+	"go.opentelemetry.io/otel"
+	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/Shopify/sarama"
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
 	"github.com/strimzi/strimzi-canary/internal/config"
 	"github.com/strimzi/strimzi-canary/internal/util"
 )
@@ -72,7 +78,6 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 		Help:      "Records end-to-end latency in milliseconds",
 		Buckets:   canaryConfig.EndToEndLatencyBuckets,
 	}, []string{"clientid", "partition"})
-
 	consumerGroup, err := sarama.NewConsumerGroupFromClient(canaryConfig.ConsumerGroupID, client)
 	if err != nil {
 		glog.Fatalf("Error creating the Sarama consumer: %v", err)
@@ -85,7 +90,7 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 	}
 	go func() {
 		labels := prometheus.Labels{
-			"clientid":  canaryConfig.ClientID,
+			"clientid": canaryConfig.ClientID,
 		}
 
 		for err := range consumerGroup.Errors() {
@@ -107,6 +112,8 @@ func (cs *ConsumerService) Consume() {
 		cgh := &consumerGroupHandler{
 			consumerService: cs,
 		}
+		h := otelsarama.WrapConsumerGroupHandler(cgh)
+
 		// creating new context with cancellation, for exiting Consume when metadata refresh is needed
 		ctx, cancel := context.WithCancel(context.Background())
 		cs.cancel = cancel
@@ -117,7 +124,7 @@ func (cs *ConsumerService) Consume() {
 
 				glog.Infof("Consumer group consume starting...")
 				// this method calls the methods handler on each stage: setup, consume and cleanup
-				if err := cs.consumerGroup.Consume(ctx, []string{cs.canaryConfig.Topic}, cgh); err != nil {
+				if err := cs.consumerGroup.Consume(ctx, []string{cs.canaryConfig.Topic}, h); err != nil {
 					glog.Errorf("Error consuming topic: %s", err.Error())
 					time.Sleep(consumeDelay)
 					continue
@@ -201,12 +208,17 @@ func (cgh *consumerGroupHandler) Cleanup(sarama.ConsumerGroupSession) error {
 
 func (cgh *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	glog.Infof("Consumer group consumeclaim on %s [%d]", claim.Topic(), claim.Partition())
-
+	tr := otel.Tracer("consumer")
 	for message := range claim.Messages() {
+		ctx := otel.GetTextMapPropagator().Extract(context.Background(), otelsarama.NewConsumerMessageCarrier(message))
+		_, span := tr.Start(ctx, "consume message", trace.WithAttributes(
+			semconv.MessagingOperationProcess,
+		))
 		timestamp := util.NowInMilliseconds() // timestamp in milliseconds
 		cm := NewCanaryMessage(message.Value)
 		duration := timestamp - cm.Timestamp
 		glog.V(1).Infof("Message received: value=%+v, partition=%d, offset=%d, duration=%d ms", cm, message.Partition, message.Offset, duration)
+		span.End()
 		session.MarkMessage(message, "")
 		labels := prometheus.Labels{
 			"clientid":  cgh.consumerService.canaryConfig.ClientID,
