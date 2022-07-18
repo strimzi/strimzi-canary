@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.5.0
+
+* Added support for OpenTelemetry (#197)
+  * Only "jaeger" and "otlp" are supported as exporter protocols for tracing. See documentation for more details.
+
 ## 0.4.0
 
 * Fixed replicas assignment taking rack configuration into account (#190)
