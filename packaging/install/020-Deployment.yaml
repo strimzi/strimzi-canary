@@ -47,5 +47,9 @@ spec:
           requests:
             memory: "64Mi"
             cpu: "100m"
+        ports:
+          - containerPort: 8080
+            name: metrics
+            protocol: TCP
   strategy:
     type: Recreate
