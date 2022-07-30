@@ -4,6 +4,8 @@
 
 * Added support for OpenTelemetry (#197)
   * Only "jaeger" and "otlp" are supported as exporter protocols for tracing. See documentation for more details.
+* Updated dependency to Sarama 1.35.0 (#200)
+* Updated default Kafka version used by Sarama library to 3.2.0 (#200)
 
 ## 0.4.0
 
