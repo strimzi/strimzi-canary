@@ -9,6 +9,7 @@ package test
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -52,7 +53,7 @@ func TestCanaryTopicLiveness(t *testing.T) {
 			topicMetadata := TopicMetadata[0]
 
 			// topic haven't been created yet.
-			if topicMetadata.Err == sarama.ErrUnknownTopicOrPartition {
+			if errors.Is(topicMetadata.Err, sarama.ErrUnknownTopicOrPartition) {
 				time.Sleep(time.Millisecond * 500)
 				continue
 			}
