@@ -7,6 +7,7 @@
 package workers
 
 import (
+	"reflect"
 	"sync"
 	"time"
 
@@ -124,8 +125,13 @@ func (cm *CanaryManager) reconcile() {
 	glog.Infof("Canary manager reconcile ...")
 
 	if result, err := cm.topicService.Reconcile(); err == nil {
-		if result.RefreshMetadata {
+		if result.RefreshProducerMetadata {
 			cm.producerService.Refresh()
+		}
+
+		leaders, err := cm.consumerService.Leaders()
+		if err != nil || !reflect.DeepEqual(result.Leaders, leaders) {
+			cm.consumerService.Refresh()
 		}
 		// producer has to send to partitions assigned to brokers
 		cm.producerService.Send(result.Assignments)

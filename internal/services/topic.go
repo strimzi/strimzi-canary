@@ -24,8 +24,10 @@ import (
 type TopicReconcileResult struct {
 	// new partitions assignments across brokers
 	Assignments map[int32][]int32
+	// partition to leader assignments
+	Leaders map[int32]int32
 	// if a refresh metadata is needed
-	RefreshMetadata bool
+	RefreshProducerMetadata bool
 }
 
 type TopicService interface {
@@ -111,7 +113,7 @@ func (ts *topicService) Reconcile() (TopicReconcileResult, error) {
 	if err != nil && util.IsDisconnection(err) {
 		// Kafka brokers close connection to the topic service admin client not able to recover
 		// Sarama issues: https://github.com/Shopify/sarama/issues/2042, https://github.com/Shopify/sarama/issues/1796
-		// Workaround closing the topic service with its admin client and the reopen on next reconcile
+		// Workaround closing the topic service with its admin client and then reopen on next reconcile
 		ts.Close()
 	}
 	return result, err
@@ -139,16 +141,10 @@ func (ts *topicService) reconcileTopic() (TopicReconcileResult, error) {
 		return result, err
 	}
 
-	metadata, err := ts.admin.DescribeTopics([]string{ts.canaryConfig.Topic})
+	topicMetadata, err := ts.describeCanaryTopic()
 	if err != nil {
-		labels := prometheus.Labels{
-			"topic": ts.canaryConfig.Topic,
-		}
-		describeTopicError.With(labels).Inc()
-		glog.Errorf("Error retrieving metadata for topic %s: %v", ts.canaryConfig.Topic, err)
 		return result, err
 	}
-	topicMetadata := metadata[0]
 
 	if errors.Is(topicMetadata.Err, sarama.ErrUnknownTopicOrPartition) {
 
@@ -166,6 +162,11 @@ func (ts *topicService) reconcileTopic() (TopicReconcileResult, error) {
 				return result, err
 			}
 			glog.Infof("The canary topic %s was created", topicMetadata.Name)
+
+			topicMetadata, err = ts.describeCanaryTopic()
+			if err != nil {
+				return result, err
+			}
 		} else {
 			glog.Warningf("The canary topic %s wasn't created. Expected brokers %d, Actual brokers %d",
 				topicMetadata.Name, ts.canaryConfig.ExpectedClusterSize, len(brokers))
@@ -194,7 +195,7 @@ func (ts *topicService) reconcileTopic() (TopicReconcileResult, error) {
 		if ts.isDynamicReassignmentEnabled() || (!ts.initialized && ts.canaryConfig.ExpectedClusterSize == len(brokers)) {
 
 			glog.Infof("Going to reassign topic partitions if needed")
-			result.RefreshMetadata = len(brokers) != len(topicMetadata.Partitions)
+			result.RefreshProducerMetadata = len(brokers) != len(topicMetadata.Partitions)
 			if result.Assignments, err = ts.alterTopicAssignments(len(topicMetadata.Partitions), brokers); err != nil {
 				labels := prometheus.Labels{
 					"topic": topicMetadata.Name,
@@ -217,8 +218,23 @@ func (ts *topicService) reconcileTopic() (TopicReconcileResult, error) {
 		return result, topicMetadata.Err
 	}
 
+	result.Leaders = ts.currentLeaders(topicMetadata)
 	ts.initialized = true
 	return result, err
+}
+
+func (ts *topicService) describeCanaryTopic() (*sarama.TopicMetadata, error) {
+	metadata, err := ts.admin.DescribeTopics([]string{ts.canaryConfig.Topic})
+	if err != nil {
+		labels := prometheus.Labels{
+			"topic": ts.canaryConfig.Topic,
+		}
+		describeTopicError.With(labels).Inc()
+		glog.Errorf("Error retrieving metadata for topic %s: %v", ts.canaryConfig.Topic, err)
+		return nil, err
+	}
+	topicMetadata := metadata[0]
+	return topicMetadata, nil
 }
 
 // Close closes the underneath Sarama admin instance
@@ -395,6 +411,14 @@ func (ts *topicService) currentAssignments(topicMetadata *sarama.TopicMetadata) 
 		copy(assignments[p.ID], p.Replicas)
 	}
 	return assignments
+}
+
+func (ts *topicService) currentLeaders(topicMetadata *sarama.TopicMetadata) map[int32]int32 {
+	leaders := make(map[int32]int32, len(topicMetadata.Partitions))
+	for _, p := range topicMetadata.Partitions {
+		leaders[p.ID] = p.Leader
+	}
+	return leaders
 }
 
 // Alter the replica assignment for the partitions

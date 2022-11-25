@@ -40,7 +40,7 @@ var (
 	// it's defined when the service is created because buckets are configurable
 	recordsProducedLatency *prometheus.HistogramVec
 
-	refreshMetadataError = promauto.NewCounterVec(prometheus.CounterOpts{
+	refreshProducerMetadataError = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name:      "producer_refresh_metadata_error_total",
 		Namespace: "strimzi_canary",
 		Help:      "Total number of errors while refreshing producer metadata",
@@ -124,7 +124,7 @@ func (ps *producerService) Refresh() {
 		labels := prometheus.Labels{
 			"clientid": ps.canaryConfig.ClientID,
 		}
-		refreshMetadataError.With(labels).Inc()
+		refreshProducerMetadataError.With(labels).Inc()
 		glog.Errorf("Error refreshing metadata in producer: %v", err)
 	}
 }
