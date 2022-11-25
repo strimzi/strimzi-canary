@@ -7,6 +7,7 @@
 package services
 
 import (
+	"github.com/pkg/errors"
 	"sort"
 	"strconv"
 	"time"
@@ -144,7 +145,7 @@ func (ts *TopicService) reconcileTopic() (TopicReconcileResult, error) {
 	}
 	topicMetadata := metadata[0]
 
-	if topicMetadata.Err == sarama.ErrUnknownTopicOrPartition {
+	if errors.Is(topicMetadata.Err, sarama.ErrUnknownTopicOrPartition) {
 
 		// canary topic doesn't exist, going to create it
 		glog.V(1).Infof("The canary topic %s doesn't exist", topicMetadata.Name)
@@ -166,7 +167,7 @@ func (ts *TopicService) reconcileTopic() (TopicReconcileResult, error) {
 			// not creating the topic and returning error to avoid starting producer/consumer
 			return result, &ErrExpectedClusterSize{}
 		}
-	} else if topicMetadata.Err == sarama.ErrNoError {
+	} else if errors.Is(topicMetadata.Err, sarama.ErrNoError) {
 		// canary topic already exists
 		glog.V(1).Infof("The canary topic %s already exists", topicMetadata.Name)
 		logTopicMetadata(topicMetadata)
@@ -347,7 +348,7 @@ func (ts *TopicService) requestedAssignments(currentPartitions int, brokers []*s
 	} else {
 		index := 0
 
-		for ;; {
+		for {
 			again := false
 
 			for _, rackName := range rackNames {

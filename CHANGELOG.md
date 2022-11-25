@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.6.0
+
+* Upgrade from go 1.13 to 1.19
+* Use errors.Is when testing Sarama errors.
+* Upgrade sarama to 1.37.2
+
 ## 0.5.0
 
 * Added support for OpenTelemetry (#197)

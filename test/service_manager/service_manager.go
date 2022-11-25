@@ -6,11 +6,14 @@
 package service_manager
 
 import (
+	"bufio"
 	"bytes"
+	"io"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -52,9 +55,9 @@ func (c *ServiceManager) StartKafkaZookeeperContainers() {
 		"start kafka and Zookeeper containers using docker-compose",
 		"docker-compose",
 		"-f", c.pathDockerComposeKafkaZookeeper, "up", "-d",
-		)
+	)
 
-	if  errComposingContainers != nil {
+	if errComposingContainers != nil {
 		log.Fatal(errComposingContainers.Error())
 	}
 	log.Println("Zookeeper and Kafka containers created")
@@ -88,11 +91,41 @@ func CreateManager() *ServiceManager {
 func (c *ServiceManager) StartCanary() {
 	log.Println("Starting Canary")
 	c.setUpCanaryParamsViaEnv()
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	myCmd := exec.Command("go", "run", c.pathToCanaryMain)
+
+	stderr, err := myCmd.StderrPipe()
+	if err != nil {
+		log.Fatalf("could not get stderr pipe: %v", err)
+	}
+	stdout, err := myCmd.StdoutPipe()
+	if err != nil {
+		log.Fatalf("could not get stdout pipe: %v", err)
+	}
+
+	go func() {
+		merged := io.MultiReader(stderr, stdout)
+		scanner := bufio.NewScanner(merged)
+		for scanner.Scan() {
+			msg := scanner.Text()
+			if strings.Contains(msg, "Starting canary manager") {
+				wg.Done()
+				return
+			}
+		}
+	}()
 
 	if err := myCmd.Start(); err != nil {
 		log.Fatal(err.Error())
 	}
+
+	if waitTimeout(&wg, time.Second*30) {
+		_ = myCmd.Process.Kill()
+		log.Fatal("canary failed to start within allowed time")
+	}
+	log.Println("Canary is ready")
 }
 
 // per se it means waiting for container's broker to communicate correctly
@@ -125,7 +158,7 @@ func (c *ServiceManager) waitForBroker() {
 			"obtain logs from zookeeper and kafka containers",
 			"docker-compose",
 			"-f", pathToDockerComposeImage, "logs",
-			)
+		)
 		if errObtainingLogs != nil {
 			log.Println("Problem obtaining logs from kafka and zookeeper containers")
 			log.Fatal(errObtainingLogs.Error())
@@ -136,7 +169,7 @@ func (c *ServiceManager) waitForBroker() {
 	}
 }
 
-func (c *ServiceManager) executeCmdWithLogging( commandDescription ,commandName string, commandArgs ...string) error{
+func (c *ServiceManager) executeCmdWithLogging(commandDescription, commandName string, commandArgs ...string) error {
 
 	cmd := exec.Command(commandName, commandArgs...)
 	var stdout, stderr bytes.Buffer
@@ -148,7 +181,7 @@ func (c *ServiceManager) executeCmdWithLogging( commandDescription ,commandName 
 	// log Stdout Stderr from command (stored within buffer)
 	outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
 	log.Printf("cmd description: %s\n", commandDescription)
-	log.Printf("execute cmd: %s %s\n", commandName, strings.Join( commandArgs ," "))
+	log.Printf("execute cmd: %s %s\n", commandName, strings.Join(commandArgs, " "))
 	log.Printf("cmd stdout:\n%s", outStr)
 	log.Printf("cmd stderr:\n%s", errStr)
 	return err
@@ -159,4 +192,18 @@ func (c *ServiceManager) setUpCanaryParamsViaEnv() {
 	os.Setenv(config.ReconcileIntervalEnvVar, c.ReconcileIntervalTime)
 	os.Setenv(config.TopicEnvVar, c.TopicTestName)
 	os.Setenv(config.BootstrapServersEnvVar, c.KafkaBrokerAddress)
+}
+
+func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		return false
+	case <-time.After(timeout):
+		return true
+	}
 }

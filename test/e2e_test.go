@@ -9,6 +9,7 @@ package test
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -33,37 +34,44 @@ func TestCanaryTopicLiveness(t *testing.T) {
 	log.Println("TestCanaryTopic test starts")
 	consumingHandler := NewConsumerGroupHandler()
 	timeout := time.After(time.Second * 10)
-
+	errs := make(chan error, 1)
 	// test itself.
 	go func() {
 		config := sarama.NewConfig()
 		config.Consumer.Return.Errors = true
 		config.Consumer.Offsets.Initial = sarama.OffsetOldest
 		ctx := context.Background()
-		clusterAdmin, _ := sarama.NewClusterAdmin([]string{serviceManager.KafkaBrokerAddress}, config)
+		clusterAdmin, err := sarama.NewClusterAdmin([]string{serviceManager.KafkaBrokerAddress}, config)
+		if err != nil {
+			errs <- err
+			return
+		}
 
 		var topicPartitionCount int
 		// wait for topic creation
 		for {
-			TopicMetadata, err := clusterAdmin.DescribeTopics([]string{serviceManager.TopicTestName})
-			if err != nil || len(TopicMetadata) != 1 {
-				t.Fatal("Problem communicating with kafka broker")
-			}
-			topicMetadata := TopicMetadata[0]
-
-			// topic haven't been created yet.
-			if topicMetadata.Err == sarama.ErrUnknownTopicOrPartition {
+			topicMetadata, err := clusterAdmin.DescribeTopics([]string{serviceManager.TopicTestName})
+			if err != nil {
+				log.Printf("Problem communicating with kafka broker: %v", err)
 				time.Sleep(time.Millisecond * 500)
 				continue
 			}
-			topicPartitionCount = len(topicMetadata.Partitions)
+
+			if len(topicMetadata) == 0 || errors.Is(topicMetadata[0].Err, sarama.ErrUnknownTopicOrPartition) {
+				// topic haven't been created yet.
+				time.Sleep(time.Millisecond * 500)
+				continue
+			}
+			canaryTopicMetadata := topicMetadata[0]
+			topicPartitionCount = len(canaryTopicMetadata.Partitions)
 			break
 		}
 
 		// consume single message
 		group, err := sarama.NewConsumerGroup([]string{serviceManager.KafkaBrokerAddress}, "faq-g9", config)
 		if err != nil {
-			panic(err)
+			errs <- err
+			return
 		}
 
 		// set up client for getting partition count on canary topic
@@ -79,13 +87,18 @@ func TestCanaryTopicLiveness(t *testing.T) {
 	select {
 	case <-timeout:
 		t.Fatalf("Test didn't finish in time due to message not being read in time")
+	case err := <-errs:
+		if err != nil {
+			t.Fatal(err)
+		}
 	case <-consumingHandler.consumingDone:
 		log.Println("message received")
 	}
+	close(errs)
 }
 
 func TestEndpointsAvailability(t *testing.T) {
-	log.Println("TestEndpointsAvailability test startss")
+	log.Println("TestEndpointsAvailability test starts")
 
 	var testInputs = [...]struct {
 		endpoint           string
