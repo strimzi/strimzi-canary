@@ -28,8 +28,13 @@ type TopicReconcileResult struct {
 	RefreshMetadata bool
 }
 
+type TopicService interface {
+	Reconcile() (TopicReconcileResult, error)
+	Close()
+}
+
 // TopicService defines the service for canary topic management
-type TopicService struct {
+type topicService struct {
 	canaryConfig *config.CanaryConfig
 	saramaConfig *sarama.Config
 	admin        sarama.ClusterAdmin
@@ -78,9 +83,9 @@ func (e *ErrExpectedClusterSize) Error() string {
 }
 
 // NewTopicService returns an instance of TopicService
-func NewTopicService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Config) *TopicService {
+func NewTopicService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Config) TopicService {
 	// lazy creation of the Sarama cluster admin client when reconcile for the first time or it's closed
-	ts := TopicService{
+	ts := topicService{
 		canaryConfig: canaryConfig,
 		saramaConfig: saramaConfig,
 		admin:        nil,
@@ -101,7 +106,7 @@ func NewTopicService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Con
 // and the producer will not send messages to him
 //
 // If a scale up, scale down, scale up happens, it forces a leader election for having preferred leaders
-func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
+func (ts *topicService) Reconcile() (TopicReconcileResult, error) {
 	result, err := ts.reconcileTopic()
 	if err != nil && util.IsDisconnection(err) {
 		// Kafka brokers close connection to the topic service admin client not able to recover
@@ -112,8 +117,8 @@ func (ts *TopicService) Reconcile() (TopicReconcileResult, error) {
 	return result, err
 }
 
-func (ts *TopicService) reconcileTopic() (TopicReconcileResult, error) {
-	result := TopicReconcileResult{nil, false}
+func (ts *topicService) reconcileTopic() (TopicReconcileResult, error) {
+	result := TopicReconcileResult{}
 
 	if ts.admin == nil {
 		glog.Infof("Creating Sarama cluster admin")
@@ -217,7 +222,7 @@ func (ts *TopicService) reconcileTopic() (TopicReconcileResult, error) {
 }
 
 // Close closes the underneath Sarama admin instance
-func (ts *TopicService) Close() {
+func (ts *topicService) Close() {
 	glog.Infof("Closing topic service")
 
 	if ts.admin != nil {
@@ -229,7 +234,7 @@ func (ts *TopicService) Close() {
 	glog.Infof("Topic service closed")
 }
 
-func (ts *TopicService) alterTopicConfiguration() error {
+func (ts *topicService) alterTopicConfiguration() error {
 	topicConfig := make(map[string]*string, len(ts.canaryConfig.TopicConfig))
 	for index, param := range ts.canaryConfig.TopicConfig {
 		p := param
@@ -241,7 +246,7 @@ func (ts *TopicService) alterTopicConfiguration() error {
 	return nil
 }
 
-func (ts *TopicService) createTopic(brokers []*sarama.Broker) (map[int32][]int32, error) {
+func (ts *topicService) createTopic(brokers []*sarama.Broker) (map[int32][]int32, error) {
 	assignments, minISR := ts.requestedAssignments(0, brokers)
 
 	v := strconv.Itoa(int(minISR))
@@ -264,7 +269,7 @@ func (ts *TopicService) createTopic(brokers []*sarama.Broker) (map[int32][]int32
 	return assignments, err
 }
 
-func (ts *TopicService) alterTopicAssignments(currentPartitions int, brokers []*sarama.Broker) (map[int32][]int32, error) {
+func (ts *topicService) alterTopicAssignments(currentPartitions int, brokers []*sarama.Broker) (map[int32][]int32, error) {
 	brokersNumber := len(brokers)
 	assignmentsMap, _ := ts.requestedAssignments(currentPartitions, brokers)
 
@@ -291,7 +296,7 @@ func (ts *TopicService) alterTopicAssignments(currentPartitions int, brokers []*
 	return assignmentsMap, err
 }
 
-func (ts *TopicService) isPreferredLeaderElectionNeeded(brokersNumber int, metadata *sarama.TopicMetadata) {
+func (ts *topicService) isPreferredLeaderElectionNeeded(brokersNumber int, metadata *sarama.TopicMetadata) {
 	electLeader := false
 	if len(metadata.Partitions) == brokersNumber {
 		for _, p := range metadata.Partitions {
@@ -303,7 +308,7 @@ func (ts *TopicService) isPreferredLeaderElectionNeeded(brokersNumber int, metad
 	glog.V(2).Infof("Elect leader = %t", electLeader)
 }
 
-func (ts *TopicService) requestedAssignments(currentPartitions int, brokers []*sarama.Broker) (map[int32][]int32, int) {
+func (ts *topicService) requestedAssignments(currentPartitions int, brokers []*sarama.Broker) (map[int32][]int32, int) {
 	brokersNumber := len(brokers)
 	partitions := max(currentPartitions, brokersNumber)
 	replicationFactor := min(brokersNumber, 3)
@@ -383,7 +388,7 @@ func (ts *TopicService) requestedAssignments(currentPartitions int, brokers []*s
 	return assignments, int(minISR)
 }
 
-func (ts *TopicService) currentAssignments(topicMetadata *sarama.TopicMetadata) map[int32][]int32 {
+func (ts *topicService) currentAssignments(topicMetadata *sarama.TopicMetadata) map[int32][]int32 {
 	assignments := make(map[int32][]int32, len(topicMetadata.Partitions))
 	for _, p := range topicMetadata.Partitions {
 		assignments[p.ID] = make([]int32, len(p.Replicas))
@@ -396,7 +401,7 @@ func (ts *TopicService) currentAssignments(topicMetadata *sarama.TopicMetadata) 
 //
 // After the request for the replica assignment, it run a loop for checking if the reassignment is still ongoing
 // It returns when the reassignment is done or there is an error
-func (ts *TopicService) alterAssignments(assignments [][]int32) error {
+func (ts *topicService) alterAssignments(assignments [][]int32) error {
 	if err := ts.admin.AlterPartitionReassignments(ts.canaryConfig.Topic, assignments); err != nil {
 		return err
 	}
@@ -426,7 +431,7 @@ func (ts *TopicService) alterAssignments(assignments [][]int32) error {
 }
 
 // If the "dynamic" topic partitions reassignment is enabled
-func (ts *TopicService) isDynamicReassignmentEnabled() bool {
+func (ts *topicService) isDynamicReassignmentEnabled() bool {
 	return ts.canaryConfig.ExpectedClusterSize == config.ExpectedClusterSizeDefault
 }
 

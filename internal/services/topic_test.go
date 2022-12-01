@@ -22,17 +22,17 @@ import (
 
 func TestRequestedAssignments(t *testing.T) {
 	var tests = []struct {
-		name                string
-		numPartitions       int
-		numBrokers          int
-		useRack             bool
+		name                       string
+		numPartitions              int
+		numBrokers                 int
+		useRack                    bool
 		brokersWithMultipleLeaders []int32
-		expectedMinISR      int
+		expectedMinISR             int
 	}{
 		{"one broker", 1, 1, false, []int32{}, 1},
 		{"three brokers without rack info", 3, 3, false, []int32{}, 2},
 		{"fewer brokers than partitions", 3, 2, false, []int32{0}, 1},
-		{"six brokers with rack info",  6, 6, true, []int32{}, 2},
+		{"six brokers with rack info", 6, 6, true, []int32{}, 2},
 	}
 
 	for _, tt := range tests {
@@ -43,7 +43,7 @@ func TestRequestedAssignments(t *testing.T) {
 
 			brokers, brokerMap := createBrokers(t, tt.numBrokers, tt.useRack)
 
-			ts := NewTopicService(cfg, nil)
+			ts := NewTopicService(cfg, nil).(*topicService)
 
 			assignments, minISR := ts.requestedAssignments(tt.numPartitions, brokers)
 
@@ -84,7 +84,7 @@ func TestRequestedAssignments(t *testing.T) {
 			for brokerId, count := range leaderBrokers {
 				if count > 1 {
 					found := false
-					for _, expectedBrokerId  := range tt.brokersWithMultipleLeaders {
+					for _, expectedBrokerId := range tt.brokersWithMultipleLeaders {
 						if expectedBrokerId == brokerId {
 							found = true
 							break
@@ -126,7 +126,7 @@ func TestRequestedAssignments(t *testing.T) {
 func createBrokers(t *testing.T, num int, rack bool) ([]*sarama.Broker, map[int32]*sarama.Broker) {
 	brokers := make([]*sarama.Broker, 0)
 	brokerMap := make(map[int32]*sarama.Broker)
-	for i := 0; i < num ; i++ {
+	for i := 0; i < num; i++ {
 		broker := &sarama.Broker{}
 
 		setBrokerID(t, broker, i)

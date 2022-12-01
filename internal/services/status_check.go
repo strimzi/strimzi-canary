@@ -29,7 +29,13 @@ type ConsumingStatus struct {
 	Percentage float64
 }
 
-type StatusService struct {
+type StatusService interface {
+	Open()
+	Close()
+	StatusHandler() http.Handler
+}
+
+type statusService struct {
 	canaryConfig           *config.CanaryConfig
 	producedRecordsSamples util.TimeWindowRing
 	consumedRecordsSamples util.TimeWindowRing
@@ -38,8 +44,8 @@ type StatusService struct {
 }
 
 // NewStatusService returns an instance of StatusService
-func NewStatusServiceService(canaryConfig *config.CanaryConfig) *StatusService {
-	ss := StatusService{
+func NewStatusServiceService(canaryConfig *config.CanaryConfig) StatusService {
+	ss := statusService{
 		canaryConfig:           canaryConfig,
 		producedRecordsSamples: *util.NewTimeWindowRing(canaryConfig.StatusTimeWindow, canaryConfig.StatusCheckInterval),
 		consumedRecordsSamples: *util.NewTimeWindowRing(canaryConfig.StatusTimeWindow, canaryConfig.StatusCheckInterval),
@@ -48,7 +54,7 @@ func NewStatusServiceService(canaryConfig *config.CanaryConfig) *StatusService {
 }
 
 // Open starts the status check loop
-func (ss *StatusService) Open() {
+func (ss *statusService) Open() {
 	ss.stop = make(chan struct{})
 	ss.syncStop.Add(1)
 
@@ -69,7 +75,7 @@ func (ss *StatusService) Open() {
 }
 
 // Close stops the status check loop
-func (ss *StatusService) Close() {
+func (ss *statusService) Close() {
 	glog.Infof("Closing status check service")
 
 	// ask to stop the ticker reconcile loop and wait
@@ -80,7 +86,7 @@ func (ss *StatusService) Close() {
 }
 
 // statusCheck does a check of produced and consumed records to fill the time window ring buffers
-func (ss *StatusService) statusCheck() {
+func (ss *statusService) statusCheck() {
 	ss.producedRecordsSamples.Put(RecordsProducedCounter)
 	ss.consumedRecordsSamples.Put(RecordsConsumedCounter)
 	glog.V(1).Infof("Status check: produced [head = %d, tail = %d, count = %d], consumed [head = %d, tail = %d, count = %d]",
@@ -88,7 +94,7 @@ func (ss *StatusService) statusCheck() {
 		ss.consumedRecordsSamples.Head(), ss.consumedRecordsSamples.Tail(), ss.consumedRecordsSamples.Count())
 }
 
-func (ss *StatusService) StatusHandler() http.Handler {
+func (ss *statusService) StatusHandler() http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		status := Status{}
 
@@ -111,7 +117,7 @@ func (ss *StatusService) StatusHandler() http.Handler {
 }
 
 // consumedPercentage function processes the percentage of consumed messages in the specified time window
-func (ss *StatusService) consumedPercentage() (float64, error) {
+func (ss *statusService) consumedPercentage() (float64, error) {
 	// sampling for produced (and consumed records) not done yet
 	if ss.producedRecordsSamples.IsEmpty() {
 		return 0, &util.ErrNoDataSamples{}

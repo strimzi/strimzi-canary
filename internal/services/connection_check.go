@@ -30,7 +30,12 @@ var (
 	connectionLatency *prometheus.HistogramVec
 )
 
-type ConnectionService struct {
+type ConnectionService interface {
+	Open()
+	Close()
+}
+
+type connectionService struct {
 	canaryConfig *config.CanaryConfig
 	saramaConfig *sarama.Config
 	admin        sarama.ClusterAdmin
@@ -40,7 +45,7 @@ type ConnectionService struct {
 }
 
 // NewConnectionService returns an instance of ConnectionService
-func NewConnectionService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Config) *ConnectionService {
+func NewConnectionService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Config) ConnectionService {
 	connectionLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:      "connection_latency",
 		Namespace: "strimzi_canary",
@@ -49,7 +54,7 @@ func NewConnectionService(canaryConfig *config.CanaryConfig, saramaConfig *saram
 	}, []string{"brokerid", "connected"})
 
 	// lazy creation of the Sarama cluster admin client when connections are checked for the first time or it's closed
-	cs := ConnectionService{
+	cs := connectionService{
 		canaryConfig: canaryConfig,
 		saramaConfig: saramaConfig,
 		admin:        nil,
@@ -58,7 +63,7 @@ func NewConnectionService(canaryConfig *config.CanaryConfig, saramaConfig *saram
 }
 
 // Open starts the connection check loop
-func (cs *ConnectionService) Open() {
+func (cs *connectionService) Open() {
 	cs.stop = make(chan struct{})
 	cs.syncStop.Add(1)
 
@@ -81,7 +86,7 @@ func (cs *ConnectionService) Open() {
 }
 
 // Close stops the connection check loop and closes the underneath Sarama admin instance
-func (cs *ConnectionService) Close() {
+func (cs *connectionService) Close() {
 	glog.Infof("Closing connection check service")
 
 	// ask to stop the ticker reconcile loop and wait
@@ -109,7 +114,7 @@ func (cs *ConnectionService) Close() {
 // metadata on each check so it doesn't try to connect to not running brokers (the user could have scaled down the cluster).
 //
 // It also reports the time needed to open a connection successfully or connection errors as metrics.
-func (cs *ConnectionService) connectionCheck() {
+func (cs *connectionService) connectionCheck() {
 	var err error
 
 	if cs.admin == nil {
@@ -164,6 +169,6 @@ func (cs *ConnectionService) connectionCheck() {
 }
 
 // If the "dynamic" scaling is enabled
-func (cs *ConnectionService) isDynamicScalingEnabled() bool {
+func (cs *connectionService) isDynamicScalingEnabled() bool {
 	return cs.canaryConfig.ExpectedClusterSize == config.ExpectedClusterSizeDefault
 }

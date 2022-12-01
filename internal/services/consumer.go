@@ -60,7 +60,12 @@ var (
 )
 
 // ConsumerService defines the service for consuming messages
-type ConsumerService struct {
+type ConsumerService interface {
+	Consume()
+	Close()
+}
+
+type consumerService struct {
 	canaryConfig  *config.CanaryConfig
 	client        sarama.Client
 	consumerGroup sarama.ConsumerGroup
@@ -71,7 +76,7 @@ type ConsumerService struct {
 }
 
 // NewConsumerService returns an instance of ConsumerService
-func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ConsumerService {
+func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client) ConsumerService {
 	recordsEndToEndLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:      "records_consumed_latency",
 		Namespace: "strimzi_canary",
@@ -82,7 +87,7 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 	if err != nil {
 		glog.Fatalf("Error creating the Sarama consumer: %v", err)
 	}
-	cs := ConsumerService{
+	cs := consumerService{
 		canaryConfig:  canaryConfig,
 		client:        client,
 		consumerGroup: consumerGroup,
@@ -106,7 +111,7 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 // This function starts a goroutine calling in an endless loop the consume on the Sarama consumer group
 // It can be exited cancelling the corresponding context through the cancel function provided by the ConsumerService instance
 // Before returning, it waits for the consumer to join the group for all the topic partitions
-func (cs *ConsumerService) Consume() {
+func (cs *consumerService) Consume() {
 	backoff := NewBackoff(maxConsumeAttempts, 5000*time.Millisecond, MaxDefault)
 	for {
 		cgh := &consumerGroupHandler{
@@ -164,7 +169,7 @@ func (cs *ConsumerService) Consume() {
 //
 // It is possible to specify a timeout on waiting
 // Returns true if waiting timed out, otherwise false
-func (cs *ConsumerService) wait(timeout time.Duration) bool {
+func (cs *consumerService) wait(timeout time.Duration) bool {
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
@@ -179,7 +184,7 @@ func (cs *ConsumerService) wait(timeout time.Duration) bool {
 }
 
 // Close closes the underneath Sarama consumer group instance
-func (cs *ConsumerService) Close() {
+func (cs *consumerService) Close() {
 	glog.Infof("Closing consumer")
 	cs.cancel()
 	err := cs.consumerGroup.Close()
@@ -191,7 +196,7 @@ func (cs *ConsumerService) Close() {
 
 // consumerGroupHandler defines the handler for the consuming Sarama functions
 type consumerGroupHandler struct {
-	consumerService *ConsumerService
+	consumerService *consumerService
 }
 
 func (cgh *consumerGroupHandler) Setup(sarama.ConsumerGroupSession) error {
