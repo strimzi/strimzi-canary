@@ -20,11 +20,11 @@ import (
 // CanaryManager defines the manager driving the different producer, consumer and topic services
 type CanaryManager struct {
 	canaryConfig      *config.CanaryConfig
-	topicService      *services.TopicService
-	producerService   *services.ProducerService
-	consumerService   *services.ConsumerService
-	connectionService *services.ConnectionService
-	statusService     *services.StatusService
+	topicService      services.TopicService
+	producerService   services.ProducerService
+	consumerService   services.ConsumerService
+	connectionService services.ConnectionService
+	statusService     services.StatusService
 	stop              chan struct{}
 	syncStop          sync.WaitGroup
 }
@@ -39,9 +39,9 @@ var (
 
 // NewCanaryManager returns an instance of the cananry manager worker
 func NewCanaryManager(canaryConfig *config.CanaryConfig,
-	topicService *services.TopicService, producerService *services.ProducerService,
-	consumerService *services.ConsumerService, connectionService *services.ConnectionService,
-	statusService *services.StatusService) Worker {
+	topicService services.TopicService, producerService services.ProducerService,
+	consumerService services.ConsumerService, connectionService services.ConnectionService,
+	statusService services.StatusService) Worker {
 	cm := CanaryManager{
 		canaryConfig:      canaryConfig,
 		topicService:      topicService,

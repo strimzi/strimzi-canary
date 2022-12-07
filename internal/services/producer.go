@@ -47,8 +47,14 @@ var (
 	}, []string{"clientid"})
 )
 
+type ProducerService interface {
+	Send(partitionsAssignments map[int32][]int32)
+	Refresh()
+	Close()
+}
+
 // ProducerService defines the service for producing messages
-type ProducerService struct {
+type producerService struct {
 	canaryConfig *config.CanaryConfig
 	client       sarama.Client
 	producer     sarama.SyncProducer
@@ -57,7 +63,7 @@ type ProducerService struct {
 }
 
 // NewProducerService returns an instance of ProductService
-func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client) *ProducerService {
+func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client) ProducerService {
 
 	recordsProducedLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:      "records_produced_latency",
@@ -71,7 +77,7 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 		glog.Fatalf("Error creating the Sarama sync producer: %v", err)
 	}
 	producer = otelsarama.WrapSyncProducer(client.Config(), producer)
-	ps := ProducerService{
+	ps := producerService{
 		canaryConfig: canaryConfig,
 		client:       client,
 		producer:     producer,
@@ -80,7 +86,7 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 }
 
 // Send sends one message to partitions assigned to brokers
-func (ps *ProducerService) Send(partitionsAssignments map[int32][]int32) {
+func (ps *producerService) Send(partitionsAssignments map[int32][]int32) {
 	numPartitions := len(partitionsAssignments)
 	msg := &sarama.ProducerMessage{
 		Topic: ps.canaryConfig.Topic,
@@ -112,7 +118,7 @@ func (ps *ProducerService) Send(partitionsAssignments map[int32][]int32) {
 }
 
 // Refresh does a refresh metadata on the underneath Sarama client
-func (ps *ProducerService) Refresh() {
+func (ps *producerService) Refresh() {
 	glog.Infof("Producer refreshing metadata")
 	if err := ps.client.RefreshMetadata(ps.canaryConfig.Topic); err != nil {
 		labels := prometheus.Labels{
@@ -124,7 +130,7 @@ func (ps *ProducerService) Refresh() {
 }
 
 // Close closes the underneath Sarama producer instance
-func (ps *ProducerService) Close() {
+func (ps *producerService) Close() {
 	glog.Infof("Closing producer")
 	err := ps.producer.Close()
 	if err != nil {
@@ -133,7 +139,7 @@ func (ps *ProducerService) Close() {
 	glog.Infof("Producer closed")
 }
 
-func (ps *ProducerService) newCanaryMessage() CanaryMessage {
+func (ps *producerService) newCanaryMessage() CanaryMessage {
 	ps.index++
 	timestamp := util.NowInMilliseconds() // timestamp in milliseconds
 	cm := CanaryMessage{

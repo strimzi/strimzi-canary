@@ -22,7 +22,7 @@ type HttpServer struct {
 }
 
 // NewHttpServer returns an instance of the HttpServer
-func NewHttpServer(statusService *services.StatusService) *HttpServer {
+func NewHttpServer(statusService services.StatusService) *HttpServer {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.Handle("/liveness", services.LivenessHandler())
