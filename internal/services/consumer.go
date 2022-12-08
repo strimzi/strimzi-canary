@@ -57,11 +57,19 @@ var (
 		Namespace: "strimzi_canary",
 		Help:      "The total number of consumers not joining the group within the timeout",
 	}, []string{"clientid"})
+
+	refreshConsumerMetadataError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:      "consumer_refresh_metadata_error_total",
+		Namespace: "strimzi_canary",
+		Help:      "Total number of errors while refreshing consumer metadata",
+	}, []string{"clientid"})
 )
 
 // ConsumerService defines the service for consuming messages
 type ConsumerService interface {
 	Consume()
+	Refresh()
+	Leaders() (map[int32]int32, error)
 	Close()
 }
 
@@ -181,6 +189,34 @@ func (cs *consumerService) wait(timeout time.Duration) bool {
 	case <-time.After(timeout):
 		return true
 	}
+}
+
+// Refresh does a refresh metadata on the underneath Sarama client
+func (cs *consumerService) Refresh() {
+	glog.Infof("Consumer refreshing metadata")
+	if err := cs.client.RefreshMetadata(cs.canaryConfig.Topic); err != nil {
+		labels := prometheus.Labels{
+			"clientid": cs.canaryConfig.ClientID,
+		}
+		refreshConsumerMetadataError.With(labels).Inc()
+		glog.Errorf("Error refreshing metadata in consumer: %v", err)
+	}
+}
+
+func (cs *consumerService) Leaders() (map[int32]int32, error) {
+	partitions, err := cs.client.Partitions(cs.canaryConfig.Topic)
+	if err != nil {
+		return nil, err
+	}
+	leaders := make(map[int32]int32, len(partitions))
+	for _, p := range partitions {
+		leader, err := cs.client.Leader(cs.canaryConfig.Topic, p)
+		if err != nil {
+			return nil, err
+		}
+		leaders[p] = leader.ID()
+	}
+	return leaders, err
 }
 
 // Close closes the underneath Sarama consumer group instance

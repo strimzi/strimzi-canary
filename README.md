@@ -133,25 +133,26 @@ If the time window has not ended, the `/status` endpoint cannot report a percent
 
 In order to check how your Apache Kafka cluster is behaving, the Canary provides the following metrics on the corresponding HTTP endpoint.
 
-| Name | Description |
-| ---- | ----------- |
-| `client_creation_error_total` | Total number of errors while creating Sarama client |
-| `expected_cluster_size_error_total` | Total number of errors while waiting the Kafka cluster having the expected size |
-| `topic_creation_failed_total` | Total number of errors while creating the canary topic |
-| `topic_describe_cluster_error_total` | Total number of errors while describing cluster |
-| `topic_describe_error_total` | Total number of errors while getting canary topic metadata |
-| `topic_alter_assignments_error_total` | Total number of errors while altering partitions assignments for the canary topic |
-| `topic_alter_configuration_error_total` | Total number of errors while altering configuration for the canary topic |
-| `records_produced_total` | The total number of records produced |
-| `records_produced_failed_total` | The total number of records failed to produce |
-| `producer_refresh_metadata_error_total` | Total number of errors while refreshing producer metadata |
-| `records_produced_latency` | Records produced latency in milliseconds |
-| `records_consumed_total` | The total number of records consumed |
-| `consumer_error_total` | Total number of errors reported by the consumer |
-| `consumer_timeout_join_group_total` | The total number of consumers not joining the group within the timeout |
-| `records_consumed_latency` | Records end-to-end latency in milliseconds |
-| `connection_error_total`| Total number of errors while checking the connection to Kafka brokers |
-| `connection_latency` | Latency in milliseconds for established or failed connections |
+| Name                                    | Description                                                                       |
+|-----------------------------------------|-----------------------------------------------------------------------------------|
+| `client_creation_error_total`           | Total number of errors while creating Sarama client                               |
+| `expected_cluster_size_error_total`     | Total number of errors while waiting the Kafka cluster having the expected size   |
+| `topic_creation_failed_total`           | Total number of errors while creating the canary topic                            |
+| `topic_describe_cluster_error_total`    | Total number of errors while describing cluster                                   |
+| `topic_describe_error_total`            | Total number of errors while getting canary topic metadata                        |
+| `topic_alter_assignments_error_total`   | Total number of errors while altering partitions assignments for the canary topic |
+| `topic_alter_configuration_error_total` | Total number of errors while altering configuration for the canary topic          |
+| `records_produced_total`                | The total number of records produced                                              |
+| `records_produced_failed_total`         | The total number of records failed to produce                                     |
+| `producer_refresh_metadata_error_total` | Total number of errors while refreshing producer metadata                         |
+| `records_produced_latency`              | Records produced latency in milliseconds                                          |
+| `records_consumed_total`                | The total number of records consumed                                              |
+| `consumer_error_total`                  | Total number of errors reported by the consumer                                   |
+| `consumer_timeout_join_group_total`     | The total number of consumers not joining the group within the timeout            |
+| `consumer_refresh_metadata_error_total` | Total number of errors while refreshing consumer metadata                         |
+| `records_consumed_latency`              | Records end-to-end latency in milliseconds                                        |
+| `connection_error_total`                | Total number of errors while checking the connection to Kafka brokers             |
+| `connection_latency`                    | Latency in milliseconds for established or failed connections                     |
 
 Following an example of metrics output.
 
