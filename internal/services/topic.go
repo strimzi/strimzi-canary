@@ -163,6 +163,7 @@ func (ts *topicService) reconcileTopic() (TopicReconcileResult, error) {
 			}
 			glog.Infof("The canary topic %s was created", topicMetadata.Name)
 
+			// now the topic is created, describe it, so we have the leader information to return to the caller later.
 			topicMetadata, err = ts.describeCanaryTopic()
 			if err != nil {
 				return result, err
