@@ -2,6 +2,7 @@
 
 ## 0.6.0
 
+* Extended consumer latency recorded after partition leadership reverts to preferred (#204)
 * Upgrade from go 1.13 to 1.19
 * Use errors.Is when testing Sarama errors.
 * Upgrade sarama to 1.37.2
