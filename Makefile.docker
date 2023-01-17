@@ -1,3 +1,4 @@
+DOCKER_CMD ?= docker
 DOCKER_REGISTRY ?= docker.io
 DOCKER_ORG ?= $(USER)
 DOCKER_TAG ?= latest
@@ -7,29 +8,29 @@ BUILD_TAG ?= latest
 docker_build:
 	# Build Docker image ...
 	echo "Building Docker image ..."
-	docker build -t strimzi/${PROJECT_NAME}:latest .
+	${DOCKER_CMD} build -t strimzi/${PROJECT_NAME}:latest .
 	# Also tag with $(BUILD_TAG)
-	docker tag strimzi/$(PROJECT_NAME):latest strimzi/$(PROJECT_NAME):$(BUILD_TAG)
+	${DOCKER_CMD} tag strimzi/$(PROJECT_NAME):latest strimzi/$(PROJECT_NAME):$(BUILD_TAG)
 
 .PHONY: docker_save
 docker_save:
 	# Saves the container as TGZ file
 	echo "Saving Docker image as tar.gz file ..."
-	docker save strimzi/${PROJECT_NAME}:${BUILD_TAG} | gzip > canary-container.tar.gz
+	${DOCKER_CMD} save strimzi/${PROJECT_NAME}:${BUILD_TAG} | gzip > canary-container.tar.gz
 
 .PHONY: docker_load
 docker_load:
 	# Loads the container as TGZ file
 	echo "Loading Docker image from tar.gz file ..."
-	docker load < canary-container.tar.gz 
+	${DOCKER_CMD} load < canary-container.tar.gz 
 
 .PHONY: docker_tag
 docker_tag:
 	# Tag the $(BUILD_TAG) image we built with the given $(DOCKER_TAG) tag
-	docker tag strimzi/$(PROJECT_NAME):$(BUILD_TAG) $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(PROJECT_NAME):$(DOCKER_TAG)
+	${DOCKER_CMD} tag strimzi/$(PROJECT_NAME):$(BUILD_TAG) $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(PROJECT_NAME):$(DOCKER_TAG)
 
 .PHONY: docker_push
 docker_push: docker_tag
 	# Push the $(DOCKER_TAG)-tagged image to the registry
 	echo "Pushing Docker image ..."
-	docker push ${DOCKER_REGISTRY}/${DOCKER_ORG}/${PROJECT_NAME}:${DOCKER_TAG}
+	${DOCKER_CMD} push ${DOCKER_REGISTRY}/${DOCKER_ORG}/${PROJECT_NAME}:${DOCKER_TAG}
