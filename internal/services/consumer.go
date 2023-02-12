@@ -35,34 +35,12 @@ const (
 )
 
 var (
-	RecordsConsumedCounter uint64 = 0
-
-	recordsConsumed = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "records_consumed_total",
-		Namespace: "strimzi_canary",
-		Help:      "The total number of records consumed",
-	}, []string{"clientid", "partition"})
-
-	recordsConsumerFailed = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "consumer_error_total",
-		Namespace: "strimzi_canary",
-		Help:      "Total number of errors reported by the consumer",
-	}, []string{"clientid"})
-
-	// it's defined when the service is created because buckets are configurable
-	recordsEndToEndLatency *prometheus.HistogramVec
-
-	timeoutJoinGroup = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "consumer_timeout_join_group_total",
-		Namespace: "strimzi_canary",
-		Help:      "The total number of consumers not joining the group within the timeout",
-	}, []string{"clientid"})
-
-	refreshConsumerMetadataError = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "consumer_refresh_metadata_error_total",
-		Namespace: "strimzi_canary",
-		Help:      "Total number of errors while refreshing consumer metadata",
-	}, []string{"clientid"})
+	RecordsConsumedCounter       uint64 = 0
+	recordsConsumed              *prometheus.CounterVec
+	recordsConsumerFailed        *prometheus.CounterVec
+	recordsEndToEndLatency       *prometheus.HistogramVec
+	timeoutJoinGroup             *prometheus.CounterVec
+	refreshConsumerMetadataError *prometheus.CounterVec
 )
 
 // ConsumerService defines the service for consuming messages
@@ -85,22 +63,55 @@ type consumerService struct {
 
 // NewConsumerService returns an instance of ConsumerService
 func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client) ConsumerService {
-	recordsEndToEndLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:      "records_consumed_latency",
-		Namespace: "strimzi_canary",
-		Help:      "Records end-to-end latency in milliseconds",
-		Buckets:   canaryConfig.EndToEndLatencyBuckets,
+
+	recordsConsumed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "records_consumed_total",
+		Namespace:   "strimzi_canary",
+		Help:        "The total number of records consumed",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
 	}, []string{"clientid", "partition"})
+
+	recordsConsumerFailed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "consumer_error_total",
+		Namespace:   "strimzi_canary",
+		Help:        "Total number of errors reported by the consumer",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, []string{"clientid"})
+
+	recordsEndToEndLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:        "records_consumed_latency",
+		Namespace:   "strimzi_canary",
+		Help:        "Records end-to-end latency in milliseconds",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+		Buckets:     canaryConfig.EndToEndLatencyBuckets,
+	}, []string{"clientid", "partition"})
+
+	timeoutJoinGroup = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "consumer_timeout_join_group_total",
+		Namespace:   "strimzi_canary",
+		Help:        "The total number of consumers not joining the group within the timeout",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, []string{"clientid"})
+
+	refreshConsumerMetadataError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "consumer_refresh_metadata_error_total",
+		Namespace:   "strimzi_canary",
+		Help:        "Total number of errors while refreshing consumer metadata",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, []string{"clientid"})
+
 	consumerGroup, err := sarama.NewConsumerGroupFromClient(canaryConfig.ConsumerGroupID, client)
 	if err != nil {
 		glog.Fatalf("Error creating the Sarama consumer: %v", err)
 	}
+
 	cs := consumerService{
 		canaryConfig:  canaryConfig,
 		client:        client,
 		consumerGroup: consumerGroup,
 		ready:         make(chan bool),
 	}
+
 	go func() {
 		labels := prometheus.Labels{
 			"clientid": canaryConfig.ClientID,
@@ -111,6 +122,7 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 			recordsConsumerFailed.With(labels).Inc()
 		}
 	}()
+
 	return &cs
 }
 

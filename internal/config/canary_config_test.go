@@ -9,6 +9,7 @@
 package config
 
 import (
+	"github.com/prometheus/client_golang/prometheus"
 	"os"
 	"strings"
 	"testing"
@@ -22,7 +23,7 @@ func TestConfigDefault(t *testing.T) {
 	assertIntConfigParameter(c.BootstrapBackoffMaxAttempts, BootstrapBackoffMaxAttemptsDefault, t)
 	assertDurationConfigParameter(c.BootstrapBackoffScale, BootstrapBackoffScaleDefault, t)
 	assertStringConfigParameter(c.Topic, TopicDefault, t)
-	topicConfigDefault := topicConfig(TopicConfigDefault)
+	topicConfigDefault := convertKVPairsToMap(TopicConfigDefault)
 	assertMapConfigParameter(c.TopicConfig, topicConfigDefault, t)
 	assertDurationConfigParameter(c.ReconcileInterval, ReconcileIntervalDefault, t)
 	assertStringConfigParameter(c.ClientID, ClientIDDefault, t)
@@ -48,6 +49,8 @@ func TestConfigDefault(t *testing.T) {
 	assertBucketsConfigParameter(c.ConnectionCheckLatencyBuckets, connectionCheckLatencyBucketsDefault, t)
 	assertDurationConfigParameter(c.StatusCheckInterval, StatusCheckIntervalDefault, t)
 	assertDurationConfigParameter(c.StatusTimeWindow, StatusTimeWindowDefault, t)
+	prometheusConsantLabelsDefault := convertKVPairsToPrometheusLabels(PrometheusConsantLabelsDefault)
+	assertMapConfigParameter(c.PrometheusConstantLabels, prometheusConsantLabelsDefault, t)
 }
 
 func TestConfigCustom(t *testing.T) {
@@ -77,13 +80,14 @@ func TestConfigCustom(t *testing.T) {
 	os.Setenv(ConnectionCheckLatencyBucketsEnvVar, "200,400,800")
 	os.Setenv(StatusCheckIntervalEnvVar, "30000")
 	os.Setenv(StatusTimeWindowEnvVar, "200000")
+	os.Setenv(PrometheusConsantLabelsEnvVar, "retry.backoff.ms=10000;request.timeout.ms=10000")
 	c := NewCanaryConfig()
 	bootstrapServers := strings.Split("kafka-broker-1:9092,kafka-broker-2:9092", ",")
 	assertStringSlicesConfigParameter(c.BootstrapServers, bootstrapServers, t)
 	assertIntConfigParameter(c.BootstrapBackoffMaxAttempts, 3, t)
 	assertDurationConfigParameter(c.BootstrapBackoffScale, 1000, t)
 	assertStringConfigParameter(c.Topic, "my-strimzi-canary-topic", t)
-	topicConfig := topicConfig("retention.ms=600000;segment.bytes=16384;cleanup.policy=compact,delete")
+	topicConfig := convertKVPairsToMap("retention.ms=600000;segment.bytes=16384;cleanup.policy=compact,delete")
 	assertMapConfigParameter(c.TopicConfig, topicConfig, t)
 	assertDurationConfigParameter(c.ReconcileInterval, 10000, t)
 	assertStringConfigParameter(c.ClientID, "my-client-id", t)
@@ -109,6 +113,8 @@ func TestConfigCustom(t *testing.T) {
 	assertBucketsConfigParameter(c.ConnectionCheckLatencyBuckets, connectionCheckLatencyBuckets, t)
 	assertDurationConfigParameter(c.StatusCheckInterval, 30000, t)
 	assertDurationConfigParameter(c.StatusTimeWindow, 200000, t)
+	prometheusConstantLabels := convertKVPairsToPrometheusLabels("retry.backoff.ms=10000;request.timeout.ms=10000")
+	assertPrometheusLabelsParameter(c.PrometheusConstantLabels, prometheusConstantLabels, t)
 }
 
 func TestTopicConfigurationNoKey(t *testing.T) {
@@ -128,6 +134,27 @@ func TestTopicConfigurationInvalidKeyValuePair(t *testing.T) {
 func TestTopicConfigurationEmptyKeyValuePair(t *testing.T) {
 	defer func() { recover() }()
 	os.Setenv(TopicConfigEnvVar, ";;;;segment.bytes=16384;cleanup.policy=compact,delete")
+	NewCanaryConfig()
+	t.Errorf("Should have been panicked!")
+}
+
+func TestPrometheusConstantLabelsNoKey(t *testing.T) {
+	defer func() { recover() }()
+	os.Setenv(PrometheusConsantLabelsEnvVar, "=10000;request.timeout.ms=10000")
+	NewCanaryConfig()
+	t.Errorf("Should have been panicked!")
+}
+
+func TestPrometheusConstantLabelsInvalidKeyValuePair(t *testing.T) {
+	defer func() { recover() }()
+	os.Setenv(PrometheusConsantLabelsEnvVar, "aaaaaaaaaaaa;retry.backoff.ms=10000;request.timeout.ms=10000")
+	NewCanaryConfig()
+	t.Errorf("Should have been panicked!")
+}
+
+func TestPrometheusConstantLabelsEmptyKeyValuePair(t *testing.T) {
+	defer func() { recover() }()
+	os.Setenv(PrometheusConsantLabelsEnvVar, ";;;;retry.backoff.ms=10000;request.timeout.ms=10000")
 	NewCanaryConfig()
 	t.Errorf("Should have been panicked!")
 }
@@ -176,6 +203,14 @@ func assertBoolConfigParameter(value bool, defaultValue bool, t *testing.T) {
 }
 
 func assertMapConfigParameter(value map[string]string, defaultValue map[string]string, t *testing.T) {
+	for i, v := range value {
+		if v != defaultValue[i] {
+			t.Errorf("got = %v, want = %v", v, defaultValue[i])
+		}
+	}
+}
+
+func assertPrometheusLabelsParameter(value prometheus.Labels, defaultValue prometheus.Labels, t *testing.T) {
 	for i, v := range value {
 		if v != defaultValue[i] {
 			t.Errorf("got = %v, want = %v", v, defaultValue[i])

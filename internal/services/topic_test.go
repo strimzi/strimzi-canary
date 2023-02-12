@@ -35,15 +35,15 @@ func TestRequestedAssignments(t *testing.T) {
 		{"six brokers with rack info", 6, 6, true, []int32{}, 2},
 	}
 
+	cfg := &config.CanaryConfig{
+		Topic: "test",
+	}
+	ts := NewTopicService(cfg, nil).(*topicService)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &config.CanaryConfig{
-				Topic: "test",
-			}
 
 			brokers, brokerMap := createBrokers(t, tt.numBrokers, tt.useRack)
-
-			ts := NewTopicService(cfg, nil).(*topicService)
 
 			assignments, minISR := ts.requestedAssignments(tt.numPartitions, brokers)
 

@@ -23,28 +23,11 @@ import (
 )
 
 var (
-	RecordsProducedCounter uint64 = 0
-
-	recordsProduced = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "records_produced_total",
-		Namespace: "strimzi_canary",
-		Help:      "The total number of records produced",
-	}, []string{"clientid", "partition"})
-
-	recordsProducedFailed = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "records_produced_failed_total",
-		Namespace: "strimzi_canary",
-		Help:      "The total number of records failed to produce",
-	}, []string{"clientid", "partition"})
-
-	// it's defined when the service is created because buckets are configurable
-	recordsProducedLatency *prometheus.HistogramVec
-
-	refreshProducerMetadataError = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "producer_refresh_metadata_error_total",
-		Namespace: "strimzi_canary",
-		Help:      "Total number of errors while refreshing producer metadata",
-	}, []string{"clientid"})
+	RecordsProducedCounter       uint64 = 0
+	recordsProduced              *prometheus.CounterVec
+	recordsProducedFailed        *prometheus.CounterVec
+	recordsProducedLatency       *prometheus.HistogramVec
+	refreshProducerMetadataError *prometheus.CounterVec
 )
 
 type ProducerService interface {
@@ -65,12 +48,34 @@ type producerService struct {
 // NewProducerService returns an instance of ProductService
 func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client) ProducerService {
 
-	recordsProducedLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:      "records_produced_latency",
-		Namespace: "strimzi_canary",
-		Help:      "Records produced latency in milliseconds",
-		Buckets:   canaryConfig.ProducerLatencyBuckets,
+	recordsProduced = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "records_produced_total",
+		Namespace:   "strimzi_canary",
+		Help:        "The total number of records produced",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
 	}, []string{"clientid", "partition"})
+
+	recordsProducedFailed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "records_produced_failed_total",
+		Namespace:   "strimzi_canary",
+		Help:        "The total number of records failed to produce",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, []string{"clientid", "partition"})
+
+	recordsProducedLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:        "records_produced_latency",
+		Namespace:   "strimzi_canary",
+		Help:        "Records produced latency in milliseconds",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+		Buckets:     canaryConfig.ProducerLatencyBuckets,
+	}, []string{"clientid", "partition"})
+
+	refreshProducerMetadataError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "producer_refresh_metadata_error_total",
+		Namespace:   "strimzi_canary",
+		Help:        "Total number of errors while refreshing producer metadata",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, []string{"clientid"})
 
 	producer, err := sarama.NewSyncProducerFromClient(client)
 	if err != nil {
