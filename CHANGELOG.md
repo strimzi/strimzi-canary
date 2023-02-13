@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.7.0
+
+* Upgraded to Sarama v1.38.1
+* Upgraded to Prometheus Go Client v1.14.0
+* Upgraded to OpenTelemetry v0.13.0
+
 ## 0.6.0
 
 * Extended consumer latency recorded after partition leadership reverts to preferred (#204)
