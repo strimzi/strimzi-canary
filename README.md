@@ -83,7 +83,7 @@ The configuration file described in more detail the next section.
 | `DYNAMIC_CONFIG_FILE` | Location of an optional external config file that provides configuration at runtime. | empty |  |
 | `DYNAMIC_CONFIG_WATCHER_INTERVAL` | Interval that dynamic config file is examined for changes in content (in ms)  | `30000` |  |
 | `EXPORTER_TYPE_TRACING` | Tracing Exporter use. Empty value disable tracing, other possible values are `jaeger` or `otlp`  | `` |  |
-
+| `PROMETHEUS_CONSTANT_LABELS` | A list of semicolon separated `key=value` pairs (i.e. `my-label-1=one;my-label-2=two`) that will be set as constant labels on all prometheus metrics. | empty |  |
 
 ## Dynamic Configuration file
 

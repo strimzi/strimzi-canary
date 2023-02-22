@@ -1,7 +1,5 @@
-//
 // Copyright Strimzi authors.
 // License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
-//
 package main
 
 import (
@@ -44,7 +42,8 @@ var (
 		Help:      "Total number of errors while creating Sarama client",
 	}, nil)
 )
-var saramaLogger = log.New(io.Discard, "[Sarama] ", log.Ldate | log.Lmicroseconds)
+var saramaLogger = log.New(io.Discard, "[Sarama] ", log.Ldate|log.Lmicroseconds)
+
 func initTracerProvider(exporterType string) *sdktrace.TracerProvider {
 	if exporterType == "" {
 		tp := trace.NewNoopTracerProvider()
@@ -81,7 +80,6 @@ func exporterTracing(exporterType string) sdktrace.SpanExporter {
 	}
 	return exporter
 }
-
 
 func main() {
 
@@ -138,6 +136,7 @@ func main() {
 	connectionService := services.NewConnectionService(canaryConfig, saramaConfig)
 
 	canaryManager := workers.NewCanaryManager(canaryConfig, topicService, producerService, consumerService, connectionService, statusService)
+	canaryManager.RegisterMetrics()
 	canaryManager.Start()
 
 	sig := <-signals

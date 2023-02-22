@@ -10,7 +10,7 @@ package test
 import (
 	"context"
 	"github.com/pkg/errors"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -130,15 +130,29 @@ func TestEndpointsAvailability(t *testing.T) {
 func TestMetricServerPrometheusContent(t *testing.T) {
 	log.Println("TestMetricServerPrometheusContent test starts")
 
-	resp, _ := http.Get(httpUrlPrefix + metricsEndpoint)
-	body, _ := ioutil.ReadAll(resp.Body)
+	resp, err := http.Get(httpUrlPrefix + metricsEndpoint)
+	if err != nil {
+		t.Fatalf("Failed to get response 1")
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to get response 1 body")
+	}
 	totalRequestCountT1, _ := strconv.Atoi(parseSucReqRateFromMetrics(string(body)))
 	if totalRequestCountT1 < 1 {
 		t.Fatalf("Content of metric server is not updated as expected")
 	}
 
-	resp2, _ := http.Get(httpUrlPrefix + metricsEndpoint)
-	body2, _ := ioutil.ReadAll(resp2.Body)
+	resp2, err := http.Get(httpUrlPrefix + metricsEndpoint)
+	if err != nil {
+		t.Fatalf("Failed to get response 2")
+	}
+	defer resp2.Body.Close()
+	body2, err := io.ReadAll(resp2.Body)
+	if err != nil {
+		t.Fatalf("Failed to get response 2 body")
+	}
 
 	// totalRequestCountT2 stores value produced after defined number of seconds from obtaining totalRequestCountT1
 	totalRequestCountT2, _ := strconv.Atoi(parseSucReqRateFromMetrics(string(body2)))
@@ -155,19 +169,40 @@ func TestMetricServerCanaryContent(t *testing.T) {
 	waitTimeMilliseconds, _ := strconv.Atoi(serviceManager.ReconcileIntervalTime)
 	time.Sleep(time.Duration(waitTimeMilliseconds*2) * time.Millisecond)
 
-	resp, _ := http.Get(httpUrlPrefix + metricsEndpoint)
-	body, _ := ioutil.ReadAll(resp.Body)
+	log.Println("TestMetricServerCanaryContent getting response 1")
+	resp, err := http.Get(httpUrlPrefix + metricsEndpoint)
+	if err != nil {
+		t.Fatalf("Failed to get response 1")
+	}
+	defer resp.Body.Close()
+	log.Println("TestMetricServerCanaryContent getting response 1 body")
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response 1 body")
+	}
+	log.Println("TestMetricServerCanaryContent parsing response 1 body")
 	totalProducedRecordsCount, err := strconv.Atoi(parseCanaryRecordsProducedFromMetrics(string(body)))
 	if err != nil {
 		t.Fatalf("Content of metric server is not updated as expected")
 	}
 
+	log.Println("TestMetricServerCanaryContent waiting for next reconcile")
 	// for update of this data we have to wait with another request for at least reconcile time.
 	time.Sleep(time.Duration(waitTimeMilliseconds*3) * time.Millisecond)
 
-	resp2, _ := http.Get(httpUrlPrefix + metricsEndpoint)
-	body2, _ := ioutil.ReadAll(resp2.Body)
+	log.Println("TestMetricServerCanaryContent getting response 2")
+	resp2, err := http.Get(httpUrlPrefix + metricsEndpoint)
+	if err != nil {
+		t.Fatalf("Failed to get response 2")
+	}
+	defer resp2.Body.Close()
+	log.Println("TestMetricServerCanaryContent getting response 2 body")
+	body2, err := io.ReadAll(resp2.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response 2 body")
+	}
 
+	log.Println("TestMetricServerCanaryContent parsing response 2 body")
 	// totalProducedRecordsCount2 stores value produced after defined number of seconds from obtaining totalProducedRecordsCount
 	totalProducedRecordsCount2, _ := strconv.Atoi(parseCanaryRecordsProducedFromMetrics(string(body2)))
 	log.Println("records produced before first request: ", totalProducedRecordsCount)

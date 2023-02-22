@@ -20,13 +20,7 @@ import (
 )
 
 var (
-	connectionError = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "connection_error_total",
-		Namespace: "strimzi_canary",
-		Help:      "Total number of errors while checking the connection to Kafka brokers",
-	}, []string{"brokerid", "connected"})
-
-	// it's defined when the service is created because buckets are configurable
+	connectionError   *prometheus.CounterVec
 	connectionLatency *prometheus.HistogramVec
 )
 
@@ -46,11 +40,20 @@ type connectionService struct {
 
 // NewConnectionService returns an instance of ConnectionService
 func NewConnectionService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Config) ConnectionService {
+
+	connectionError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "connection_error_total",
+		Namespace:   "strimzi_canary",
+		Help:        "Total number of errors while checking the connection to Kafka brokers",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, []string{"brokerid", "connected"})
+
 	connectionLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:      "connection_latency",
-		Namespace: "strimzi_canary",
-		Help:      "Latency in milliseconds for established or failed connections",
-		Buckets:   canaryConfig.ConnectionCheckLatencyBuckets,
+		Name:        "connection_latency",
+		Namespace:   "strimzi_canary",
+		Help:        "Latency in milliseconds for established or failed connections",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+		Buckets:     canaryConfig.ConnectionCheckLatencyBuckets,
 	}, []string{"brokerid", "connected"})
 
 	// lazy creation of the Sarama cluster admin client when connections are checked for the first time or it's closed

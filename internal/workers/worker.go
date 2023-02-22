@@ -10,4 +10,8 @@ package workers
 type Worker interface {
 	Start()
 	Stop()
+	// Register metrics with prometheus default registery.
+	// Decoupling metrics registration from Worker creation allows for multiple workers
+	// to be created for testing without multiple registrations of the same metrics.
+	RegisterMetrics()
 }

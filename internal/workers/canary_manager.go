@@ -31,11 +31,7 @@ type CanaryManager struct {
 }
 
 var (
-	expectedClusterSizeError = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "expected_cluster_size_error_total",
-		Namespace: "strimzi_canary",
-		Help:      "Total number of errors while waiting the Kafka cluster having the expected size",
-	}, nil)
+	expectedClusterSizeError *prometheus.CounterVec
 )
 
 // NewCanaryManager returns an instance of the cananry manager worker
@@ -43,6 +39,7 @@ func NewCanaryManager(canaryConfig *config.CanaryConfig,
 	topicService services.TopicService, producerService services.ProducerService,
 	consumerService services.ConsumerService, connectionService services.ConnectionService,
 	statusService services.StatusService) Worker {
+
 	cm := CanaryManager{
 		canaryConfig:      canaryConfig,
 		topicService:      topicService,
@@ -52,6 +49,15 @@ func NewCanaryManager(canaryConfig *config.CanaryConfig,
 		statusService:     statusService,
 	}
 	return &cm
+}
+
+func (cm *CanaryManager) RegisterMetrics() {
+	expectedClusterSizeError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "expected_cluster_size_error_total",
+		Namespace:   "strimzi_canary",
+		Help:        "Total number of errors while waiting the Kafka cluster having the expected size",
+		ConstLabels: cm.canaryConfig.PrometheusConstantLabels,
+	}, nil)
 }
 
 // Start runs a first reconcile and start a timer for periodic reconciling

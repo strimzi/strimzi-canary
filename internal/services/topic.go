@@ -7,10 +7,11 @@
 package services
 
 import (
-	"github.com/pkg/errors"
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/Shopify/sarama"
 	"github.com/golang/glog"
@@ -44,37 +45,12 @@ type topicService struct {
 }
 
 var (
-	cleanupPolicy string = "delete"
-
-	topicCreationFailed = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "topic_creation_failed_total",
-		Namespace: "strimzi_canary",
-		Help:      "Total number of errors while creating the canary topic",
-	}, []string{"topic"})
-
-	describeClusterError = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "topic_describe_cluster_error_total",
-		Namespace: "strimzi_canary",
-		Help:      "Total number of errors while describing cluster",
-	}, nil)
-
-	describeTopicError = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "topic_describe_error_total",
-		Namespace: "strimzi_canary",
-		Help:      "Total number of errors while getting canary topic metadata",
-	}, []string{"topic"})
-
-	alterTopicAssignmentsError = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "topic_alter_assignments_error_total",
-		Namespace: "strimzi_canary",
-		Help:      "Total number of errors while altering partitions assignments for the canary topic",
-	}, []string{"topic"})
-
-	alterTopicConfigurationError = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name:      "topic_alter_configuration_error_total",
-		Namespace: "strimzi_canary",
-		Help:      "Total number of errors while altering configuration for the canary topic",
-	}, []string{"topic"})
+	cleanupPolicy                string = "delete"
+	topicCreationFailed          *prometheus.CounterVec
+	describeClusterError         *prometheus.CounterVec
+	describeTopicError           *prometheus.CounterVec
+	alterTopicAssignmentsError   *prometheus.CounterVec
+	alterTopicConfigurationError *prometheus.CounterVec
 )
 
 // ErrExpectedClusterSize defines the error raised when the expected cluster size is not met
@@ -86,6 +62,42 @@ func (e *ErrExpectedClusterSize) Error() string {
 
 // NewTopicService returns an instance of TopicService
 func NewTopicService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Config) TopicService {
+
+	topicCreationFailed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "topic_creation_failed_total",
+		Namespace:   "strimzi_canary",
+		Help:        "Total number of errors while creating the canary topic",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, []string{"topic"})
+
+	describeClusterError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "topic_describe_cluster_error_total",
+		Namespace:   "strimzi_canary",
+		Help:        "Total number of errors while describing cluster",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, nil)
+
+	describeTopicError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "topic_describe_error_total",
+		Namespace:   "strimzi_canary",
+		Help:        "Total number of errors while getting canary topic metadata",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, []string{"topic"})
+
+	alterTopicAssignmentsError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "topic_alter_assignments_error_total",
+		Namespace:   "strimzi_canary",
+		Help:        "Total number of errors while altering partitions assignments for the canary topic",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, []string{"topic"})
+
+	alterTopicConfigurationError = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "topic_alter_configuration_error_total",
+		Namespace:   "strimzi_canary",
+		Help:        "Total number of errors while altering configuration for the canary topic",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, []string{"topic"})
+
 	// lazy creation of the Sarama cluster admin client when reconcile for the first time or it's closed
 	ts := topicService{
 		canaryConfig: canaryConfig,

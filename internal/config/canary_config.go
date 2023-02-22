@@ -15,6 +15,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -47,8 +48,8 @@ const (
 	StatusTimeWindowEnvVar              = "STATUS_TIME_WINDOW_MS"
 	DynamicConfigFileEnvVar             = "DYNAMIC_CONFIG_FILE"
 	DynamicConfigWatcherIntervalEnvVar  = "DYNAMIC_CONFIG_WATCHER_INTERVAL"
-	//TODO: This will be removed when Support the OTEL_TRACES_EXPORTER env var is available in the SDK see: https://github.com/open-telemetry/opentelemetry-go/issues/2310
-	ExporterTypeTracing = "EXPORTER_TYPE_TRACING"
+	ExporterTypeTracing                 = "EXPORTER_TYPE_TRACING" //TODO: This will be removed when Support the OTEL_TRACES_EXPORTER env var is available in the SDK see: https://github.com/open-telemetry/opentelemetry-go/issues/2310
+	PrometheusConsantLabelsEnvVar       = "PROMETHEUS_CONSTANT_LABELS"
 	// default values for environment variables
 	BootstrapServersDefault              = "localhost:9092"
 	BootstrapBackoffMaxAttemptsDefault   = 10
@@ -79,6 +80,7 @@ const (
 	DynamicConfigFileDefault             = ""
 	DynamicConfigWatcherIntervalDefault  = 30000
 	ExporterTypeTracingDefault           = "" //if empty no tracing for now, possible values : "otlp" or "jaeger"
+	PrometheusConsantLabelsDefault       = ""
 )
 
 type DynamicCanaryConfig struct {
@@ -116,6 +118,7 @@ type CanaryConfig struct {
 	StatusTimeWindow              time.Duration
 	DynamicConfigWatcherInterval  time.Duration
 	ExporterTypeTracing           string
+	PrometheusConstantLabels      prometheus.Labels
 }
 
 func NewDynamicCanaryConfig() *DynamicCanaryConfig {
@@ -158,7 +161,7 @@ func NewCanaryConfig() *CanaryConfig {
 		BootstrapBackoffMaxAttempts:   lookupIntEnv(BootstrapBackoffMaxAttemptsEnvVar, BootstrapBackoffMaxAttemptsDefault),
 		BootstrapBackoffScale:         time.Duration(lookupIntEnv(BootstrapBackoffScaleEnvVar, BootstrapBackoffScaleDefault)),
 		Topic:                         lookupStringEnv(TopicEnvVar, TopicDefault),
-		TopicConfig:                   topicConfig(lookupStringEnv(TopicConfigEnvVar, TopicConfigDefault)),
+		TopicConfig:                   convertKVPairsToMap(lookupStringEnv(TopicConfigEnvVar, TopicConfigDefault)),
 		ReconcileInterval:             time.Duration(lookupIntEnv(ReconcileIntervalEnvVar, ReconcileIntervalDefault)),
 		ClientID:                      lookupStringEnv(ClientIDEnvVar, ClientIDDefault),
 		ConsumerGroupID:               lookupStringEnv(ConsumerGroupIDEnvVar, ConsumerGroupIDDefault),
@@ -181,6 +184,7 @@ func NewCanaryConfig() *CanaryConfig {
 		DynamicConfigFile:             lookupStringEnv(DynamicConfigFileEnvVar, DynamicConfigFileDefault),
 		DynamicConfigWatcherInterval:  time.Duration(lookupIntEnv(DynamicConfigWatcherIntervalEnvVar, DynamicConfigWatcherIntervalDefault)),
 		ExporterTypeTracing:           exporterTypeTracing(),
+		PrometheusConstantLabels:      convertKVPairsToPrometheusLabels(lookupStringEnv(PrometheusConsantLabelsEnvVar, PrometheusConsantLabelsDefault)),
 	}
 	return &config
 }
@@ -224,13 +228,13 @@ func latencyBuckets(bucketsConfig string) []float64 {
 	return fBuckets
 }
 
-func topicConfig(topicConfig string) map[string]string {
-	if len(topicConfig) == 0 {
+func convertKVPairsToMap(kvPairsStr string) map[string]string {
+	if len(kvPairsStr) == 0 {
 		return nil
 	}
 
-	mapTopicConfig := make(map[string]string)
-	kvPairs := strings.Split(topicConfig, ";")
+	kvPairMap := make(map[string]string)
+	kvPairs := strings.Split(kvPairsStr, ";")
 	for i, kvPair := range kvPairs {
 		// just exits if latest kvPair is empty (allows trailing ";")
 		if i == len(kvPairs)-1 && len(kvPair) == 0 {
@@ -239,11 +243,26 @@ func topicConfig(topicConfig string) map[string]string {
 		kv := strings.Split(kvPair, "=")
 		// key-value pair split has to have two fields (key has to be not empty)
 		if len(kv) != 2 || len(kv[0]) == 0 {
-			panic(fmt.Errorf("error parsing topic configuration [%s]: [%s] is not a valid key-value pair", topicConfig, kvPair))
+			panic(fmt.Errorf("error parsing pair [%s]: not a valid key-value pair", kvPair))
 		}
-		mapTopicConfig[kv[0]] = kv[1]
+		kvPairMap[kv[0]] = kv[1]
 	}
-	return mapTopicConfig
+	return kvPairMap
+}
+
+func convertKVPairsToPrometheusLabels(kvPairsStr string) prometheus.Labels {
+
+	kvPairsMap := convertKVPairsToMap(kvPairsStr)
+	if kvPairsMap == nil {
+		return nil
+	}
+
+	var constantLabels = make(prometheus.Labels)
+	for key, value := range kvPairsMap {
+		constantLabels[key] = value
+	}
+
+	return constantLabels
 }
 
 func (c CanaryConfig) String() string {
