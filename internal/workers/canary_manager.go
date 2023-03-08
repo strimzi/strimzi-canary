@@ -58,6 +58,9 @@ func (cm *CanaryManager) RegisterMetrics() {
 		Help:        "Total number of errors while waiting the Kafka cluster having the expected size",
 		ConstLabels: cm.canaryConfig.PrometheusConstantLabels,
 	}, nil)
+
+	// initialize all error-related metrics with starting value of 0
+	expectedClusterSizeError.With(nil).Add(0)
 }
 
 // Start runs a first reconcile and start a timer for periodic reconciling

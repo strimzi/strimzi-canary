@@ -158,6 +158,19 @@ func (ts *topicService) reconcileTopic() (TopicReconcileResult, error) {
 		return result, err
 	}
 
+	// initialize all error-related metrics with starting value of 0
+	if !ts.initialized {
+		labels := prometheus.Labels{
+			"topic": topicMetadata.Name,
+		}
+
+		topicCreationFailed.With(labels).Add(0)
+		describeClusterError.With(nil).Add(0)
+		describeTopicError.With(labels).Add(0)
+		alterTopicAssignmentsError.With(labels).Add(0)
+		alterTopicConfigurationError.With(labels).Add(0)
+	}
+
 	if errors.Is(topicMetadata.Err, sarama.ErrUnknownTopicOrPartition) {
 
 		// canary topic doesn't exist, going to create it
