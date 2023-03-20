@@ -43,9 +43,6 @@ type producerService struct {
 	producer     sarama.SyncProducer
 	// index of the next message to send
 	index int
-	// specifically for initialization of metrics value
-	previousNumPartitions int
-	initialized           bool
 }
 
 // NewProducerService returns an instance of ProductService
@@ -95,7 +92,6 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 		canaryConfig: canaryConfig,
 		client:       client,
 		producer:     producer,
-		initialized:  false,
 	}
 
 	return &ps
@@ -104,10 +100,7 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 // Send sends one message to partitions assigned to brokers
 func (ps *producerService) Send(partitionsAssignments map[int32][]int32) {
 	numPartitions := len(partitionsAssignments)
-	// detects change in number of partition and initialize metrics on additional partition
-	if ps.previousNumPartitions < numPartitions {
-		ps.initialized = false
-	}
+
 	msg := &sarama.ProducerMessage{
 		Topic: ps.canaryConfig.Topic,
 	}
@@ -124,10 +117,7 @@ func (ps *producerService) Send(partitionsAssignments map[int32][]int32) {
 			"clientid":  ps.canaryConfig.ClientID,
 			"partition": strconv.Itoa(i),
 		}
-		// initialize all error-related metrics with starting value of 0
-		if !ps.initialized {
-			recordsProducedFailed.With(labels).Add(0)
-		}
+
 		recordsProduced.With(labels).Inc()
 		RecordsProducedCounter++
 		if err != nil {
@@ -137,9 +127,9 @@ func (ps *producerService) Send(partitionsAssignments map[int32][]int32) {
 			duration := timestamp - cm.Timestamp
 			glog.V(1).Infof("Message sent: partition=%d, offset=%d, duration=%d ms", partition, offset, duration)
 			recordsProducedLatency.With(labels).Observe(float64(duration))
+			recordsProducedFailed.With(labels).Add(0)
 		}
 	}
-	ps.initialized = true
 }
 
 // Refresh does a refresh metadata on the underneath Sarama client
