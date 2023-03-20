@@ -36,7 +36,6 @@ type connectionService struct {
 	brokers      []*sarama.Broker
 	stop         chan struct{}
 	syncStop     sync.WaitGroup
-	initialized  bool
 }
 
 // NewConnectionService returns an instance of ConnectionService
@@ -62,7 +61,6 @@ func NewConnectionService(canaryConfig *config.CanaryConfig, saramaConfig *saram
 		canaryConfig: canaryConfig,
 		saramaConfig: saramaConfig,
 		admin:        nil,
-		initialized:  false,
 	}
 	return &cs
 }
@@ -162,7 +160,7 @@ func (cs *connectionService) connectionCheck() {
 			"connected": strconv.FormatBool(connected),
 		}
 		// initialize all error-related metrics with starting value of 0
-		if !cs.initialized {
+		if connected {
 			connectionError.With(labels).Add(0)
 		}
 		if connected {
@@ -174,7 +172,6 @@ func (cs *connectionService) connectionCheck() {
 		}
 		connectionLatency.With(labels).Observe(float64(duration))
 	}
-	cs.initialized = true
 }
 
 // If the "dynamic" scaling is enabled
