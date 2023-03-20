@@ -5,6 +5,7 @@
 * Upgraded to Sarama v1.38.1
 * Upgraded to Prometheus Go Client v1.14.0
 * Upgraded to OpenTelemetry v0.13.0
+* Fixed error-related metrics starting from 0 (#215)
 
 ## 0.6.0
 
