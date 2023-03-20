@@ -112,11 +112,14 @@ func NewConsumerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 		ready:         make(chan bool),
 	}
 
-	go func() {
-		labels := prometheus.Labels{
-			"clientid": canaryConfig.ClientID,
-		}
+	labels := prometheus.Labels{
+		"clientid": canaryConfig.ClientID,
+	}
+	// initialize all error-related metrics with starting value of 0
+	recordsConsumerFailed.With(labels).Add(0)
+	refreshConsumerMetadataError.With(labels).Add(0)
 
+	go func() {
 		for err := range consumerGroup.Errors() {
 			glog.Errorf("Error received whilst consuming from topic: %v", err)
 			recordsConsumerFailed.With(labels).Inc()

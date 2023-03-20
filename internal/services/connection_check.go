@@ -162,6 +162,7 @@ func (cs *connectionService) connectionCheck() {
 
 		if connected {
 			b.Close()
+			connectionError.With(labels).Add(0)
 			glog.V(1).Infof("Connected to broker %d in %d ms", b.ID(), duration)
 		} else {
 			connectionError.With(labels).Inc()

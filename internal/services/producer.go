@@ -77,6 +77,12 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 		ConstLabels: canaryConfig.PrometheusConstantLabels,
 	}, []string{"clientid"})
 
+	labels := prometheus.Labels{
+		"clientid": canaryConfig.ClientID,
+	}
+	// initialize all error-related metrics with starting value of 0
+	refreshProducerMetadataError.With(labels).Add(0)
+
 	producer, err := sarama.NewSyncProducerFromClient(client)
 	if err != nil {
 		glog.Fatalf("Error creating the Sarama sync producer: %v", err)
@@ -87,6 +93,7 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 		client:       client,
 		producer:     producer,
 	}
+
 	return &ps
 }
 
@@ -118,6 +125,7 @@ func (ps *producerService) Send(partitionsAssignments map[int32][]int32) {
 			duration := timestamp - cm.Timestamp
 			glog.V(1).Infof("Message sent: partition=%d, offset=%d, duration=%d ms", partition, offset, duration)
 			recordsProducedLatency.With(labels).Observe(float64(duration))
+			recordsProducedFailed.With(labels).Add(0)
 		}
 	}
 }
