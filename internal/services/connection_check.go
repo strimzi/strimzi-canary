@@ -159,12 +159,10 @@ func (cs *connectionService) connectionCheck() {
 			"brokerid":  strconv.Itoa(int(b.ID())),
 			"connected": strconv.FormatBool(connected),
 		}
-		// initialize all error-related metrics with starting value of 0
-		if connected {
-			connectionError.With(labels).Add(0)
-		}
+
 		if connected {
 			b.Close()
+			connectionError.With(labels).Add(0)
 			glog.V(1).Infof("Connected to broker %d in %d ms", b.ID(), duration)
 		} else {
 			connectionError.With(labels).Inc()
