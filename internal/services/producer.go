@@ -100,7 +100,6 @@ func NewProducerService(canaryConfig *config.CanaryConfig, client sarama.Client)
 // Send sends one message to partitions assigned to brokers
 func (ps *producerService) Send(partitionsAssignments map[int32][]int32) {
 	numPartitions := len(partitionsAssignments)
-
 	msg := &sarama.ProducerMessage{
 		Topic: ps.canaryConfig.Topic,
 	}
@@ -117,7 +116,6 @@ func (ps *producerService) Send(partitionsAssignments map[int32][]int32) {
 			"clientid":  ps.canaryConfig.ClientID,
 			"partition": strconv.Itoa(i),
 		}
-
 		recordsProduced.With(labels).Inc()
 		RecordsProducedCounter++
 		if err != nil {
