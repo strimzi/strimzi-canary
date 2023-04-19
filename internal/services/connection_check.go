@@ -21,6 +21,7 @@ import (
 
 var (
 	deprecatedConnectionError   *prometheus.CounterVec
+	connection   *prometheus.CounterVec
 	connectionLatency *prometheus.HistogramVec
 )
 
@@ -45,6 +46,13 @@ func NewConnectionService(canaryConfig *config.CanaryConfig, saramaConfig *saram
 		Name:        "connection_error_total",
 		Namespace:   "strimzi_canary",
 		Help:        "Total number of errors while checking the connection to Kafka brokers",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, []string{"brokerid", "connected"})
+
+	connection = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "connection_total",
+		Namespace:   "strimzi_canary",
+		Help:        "Total number of connections to Kafka brokers (connection may have succeeded or failed)",
 		ConstLabels: canaryConfig.PrometheusConstantLabels,
 	}, []string{"brokerid", "connected"})
 
@@ -160,6 +168,7 @@ func (cs *connectionService) connectionCheck() {
 			"connected": strconv.FormatBool(connected),
 		}
 
+		connection.With(labels).Inc()
 		if connected {
 			b.Close()
 			deprecatedConnectionError.With(labels).Add(0)
