@@ -151,8 +151,8 @@ In order to check how your Apache Kafka cluster is behaving, the Canary provides
 | `consumer_timeout_join_group_total`     | The total number of consumers not joining the group within the timeout            |
 | `consumer_refresh_metadata_error_total` | Total number of errors while refreshing consumer metadata                         |
 | `records_consumed_latency`              | Records end-to-end latency in milliseconds                                        |
-| `connection_error_total`                | *Deprecated - use connection_total* Total number of errors while checking the connection to Kafka brokers|
-| `connection_total`                      | Total of outcomes while checking the connection to Kafka brokers                  |
+| `connection_error_total`                | (Deprecated - use `connection_total`) Total number of errors while checking the connection to Kafka brokers|
+| `connection_total`                      | Total number of (failed or successful) connections to Kafka brokers               |
 | `connection_latency`                    | Latency in milliseconds for established or failed connections                     |
 
 Following an example of metrics output.
