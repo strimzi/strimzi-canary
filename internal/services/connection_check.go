@@ -20,9 +20,9 @@ import (
 )
 
 var (
-	deprecatedConnectionError   *prometheus.CounterVec
-	connection   *prometheus.CounterVec
-	connectionLatency *prometheus.HistogramVec
+	deprecatedConnectionError *prometheus.CounterVec
+	connection                *prometheus.CounterVec
+	connectionLatency         *prometheus.HistogramVec
 )
 
 type ConnectionService interface {
@@ -156,18 +156,30 @@ func (cs *connectionService) connectionCheck() {
 	}
 
 	for _, b := range cs.brokers {
-
+		brokerId := int(b.ID())
+		connectSuccessLabels := prometheus.Labels{
+			"brokerid":  strconv.Itoa(brokerId),
+			"connected": strconv.FormatBool(true),
+		}
+		connection.With(connectSuccessLabels).Add(0)
+		deprecatedConnectionError.With(connectSuccessLabels).Add(0)
+		connectFailureLabels := prometheus.Labels{
+			"brokerid":  strconv.Itoa(brokerId),
+			"connected": strconv.FormatBool(false),
+		}
+		connection.With(connectFailureLabels).Add(0)
+		deprecatedConnectionError.With(connectFailureLabels).Add(0)
 		start := util.NowInMilliseconds() // timestamp in milliseconds
 		// ignore error because it will be reported by Connected() call if "not connected"
 		b.Open(cs.saramaConfig)
 		connected, err := b.Connected()
 		duration := util.NowInMilliseconds() - start
-
-		labels := prometheus.Labels{
-			"brokerid":  strconv.Itoa(int(b.ID())),
-			"connected": strconv.FormatBool(connected),
+		var labels prometheus.Labels
+		if connected {
+			labels = connectSuccessLabels
+		} else {
+			labels = connectFailureLabels
 		}
-
 		connection.With(labels).Inc()
 		if connected {
 			b.Close()
