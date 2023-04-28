@@ -20,8 +20,9 @@ import (
 )
 
 var (
-	connectionError   *prometheus.CounterVec
-	connectionLatency *prometheus.HistogramVec
+	deprecatedConnectionError *prometheus.CounterVec
+	connection                *prometheus.CounterVec
+	connectionLatency         *prometheus.HistogramVec
 )
 
 type ConnectionService interface {
@@ -41,10 +42,17 @@ type connectionService struct {
 // NewConnectionService returns an instance of ConnectionService
 func NewConnectionService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Config) ConnectionService {
 
-	connectionError = promauto.NewCounterVec(prometheus.CounterOpts{
+	deprecatedConnectionError = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name:        "connection_error_total",
 		Namespace:   "strimzi_canary",
 		Help:        "Total number of errors while checking the connection to Kafka brokers",
+		ConstLabels: canaryConfig.PrometheusConstantLabels,
+	}, []string{"brokerid", "connected"})
+
+	connection = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name:        "connection_total",
+		Namespace:   "strimzi_canary",
+		Help:        "Total number of connections to Kafka brokers (connection may have succeeded or failed)",
 		ConstLabels: canaryConfig.PrometheusConstantLabels,
 	}, []string{"brokerid", "connected"})
 
@@ -148,24 +156,37 @@ func (cs *connectionService) connectionCheck() {
 	}
 
 	for _, b := range cs.brokers {
-
+		brokerId := int(b.ID())
+		connectSuccessLabels := prometheus.Labels{
+			"brokerid":  strconv.Itoa(brokerId),
+			"connected": strconv.FormatBool(true),
+		}
+		connection.With(connectSuccessLabels).Add(0)
+		deprecatedConnectionError.With(connectSuccessLabels).Add(0)
+		connectFailureLabels := prometheus.Labels{
+			"brokerid":  strconv.Itoa(brokerId),
+			"connected": strconv.FormatBool(false),
+		}
+		connection.With(connectFailureLabels).Add(0)
+		deprecatedConnectionError.With(connectFailureLabels).Add(0)
 		start := util.NowInMilliseconds() // timestamp in milliseconds
 		// ignore error because it will be reported by Connected() call if "not connected"
 		b.Open(cs.saramaConfig)
 		connected, err := b.Connected()
 		duration := util.NowInMilliseconds() - start
-
-		labels := prometheus.Labels{
-			"brokerid":  strconv.Itoa(int(b.ID())),
-			"connected": strconv.FormatBool(connected),
+		var labels prometheus.Labels
+		if connected {
+			labels = connectSuccessLabels
+		} else {
+			labels = connectFailureLabels
 		}
-
+		connection.With(labels).Inc()
 		if connected {
 			b.Close()
-			connectionError.With(labels).Add(0)
+			deprecatedConnectionError.With(labels).Add(0)
 			glog.V(1).Infof("Connected to broker %d in %d ms", b.ID(), duration)
 		} else {
-			connectionError.With(labels).Inc()
+			deprecatedConnectionError.With(labels).Inc()
 			glog.Errorf("Error connecting to broker %d in %d ms (error [%v])", b.ID(), duration, err)
 		}
 		connectionLatency.With(labels).Observe(float64(duration))

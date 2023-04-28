@@ -6,6 +6,7 @@
 * Upgraded to Prometheus Go Client v1.14.0
 * Upgraded to OpenTelemetry v0.13.0
 * Fixed error-related metrics starting from 0 (#215)
+* Add connection_total metric (deprecating connection_error_total metric which will be removed in future)
 
 ## 0.6.0
 
