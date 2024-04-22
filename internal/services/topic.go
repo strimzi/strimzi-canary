@@ -113,7 +113,7 @@ func NewTopicService(canaryConfig *config.CanaryConfig, saramaConfig *sarama.Con
 // If topic doesn't exist it's created with a partitions assignments having
 // one leader partition for each broker
 //
-// It topic already exists, it checks the number of partitions compared to the current brokers
+// If topic already exists, it checks the number of partitions compared to the current brokers
 // 1. if cluster scaled up, it adds partitions processing a reassignment
 // 2. if cluster scaled down, it just does a reassignment.
 // In case of cluster scaled down, the partitions above the number of brokers are considered orphans
