@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"fmt"
 
 	"github.com/Shopify/sarama"
 )
