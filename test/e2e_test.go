@@ -193,6 +193,7 @@ func TestMetricServerCanaryContent(t *testing.T) {
 	log.Println("TestMetricServerCanaryContent getting response 2")
 	resp2, err := http.Get(httpUrlPrefix + metricsEndpoint)
 	if err != nil {
+		fmt.Printf("Failed to get response 2: %v\n", err)
 		t.Fatalf("Failed to get response 2")
 	}
 	defer resp2.Body.Close()
