@@ -2,6 +2,7 @@
 
 ## 0.7.0
 
+* Upgraded from go 1.19 to 1.22
 * Upgraded to Sarama v1.38.1
 * Upgraded to Prometheus Go Client v1.14.0
 * Upgraded to OpenTelemetry v0.13.0
