@@ -1,0 +1,118 @@
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: canary
+  labels:
+    strimzi.io/cluster: my-cluster
+spec:
+  partitions: 3
+  replicas: 3
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: strimzi-canary-client
+  labels:
+    strimzi.io/cluster: my-cluster
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: canary
+          patternType: literal
+        operations:
+          - Describe
+          - Write
+          - Read
+        host: "*"
+      - resource:
+          type: cluster
+        operation: Alter
+        host: "*"
+      - resource:
+          type: group
+          name: strimzi-canary-group
+          patternType: literal
+        operations:
+          - Read
+        host: "*"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: strimzi-canary
+  labels:
+    app: strimzi-canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: strimzi-canary
+  template:
+    metadata:
+      labels:
+        app: strimzi-canary
+    spec:
+      serviceAccountName: strimzi-canary
+      containers:
+      - name: strimzi-canary
+        image: quay.io/strimzi/canary:0.6.0
+        env:
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: my-cluster-kafka-bootstrap:9092
+          - name: RECONCILE_INTERVAL_MS
+            value: "10000"
+          - name: TOPIC
+            value: "canary"
+          - name: CLIENT_ID
+            value: "strimzi-canary-client"
+          - name: CONSUMER_GROUP_ID
+            value: "strimzi-canary-group"
+          - name: TLS_ENABLED
+            value: "true"
+          - name: TLS_CA_CERT
+            valueFrom:
+              secretKeyRef:
+                # the CA of your cluster - can be your own CA or created by strimzi
+                name: my-cluster-cluster-ca-cert
+                key: ca.crt
+          - name: TLS_CLIENT_CERT
+            valueFrom:
+              secretKeyRef:
+                name: "strimzi-canary-client"
+                key: user.crt
+          - name: TLS_CLIENT_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "strimzi-canary-client"
+                key: user.key
+        livenessProbe:
+          httpGet:
+            path: /liveness
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        resources:
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+        ports:
+          - containerPort: 8080
+            name: metrics
+            protocol: TCP
+  strategy:
+    type: Recreate
