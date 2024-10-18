@@ -5,6 +5,9 @@
 
 # Strimzi canary
 
+Based on the proposal [86 - Archive Canary project](https://github.com/strimzi/proposals/blob/main/086-archive-canary.md) this repository is archived.
+
+## Summary
 This repository contains the Strimzi canary tool implementation.
 The canary tool acts as an indicator of whether [Apache Kafka®](https://kafka.apache.org) clusters are operating correctly.
 This is achieved by creating a canary topic and periodically producing and consuming events on the topic and getting metrics out of these exchanges.
